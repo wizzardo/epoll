@@ -13,11 +13,11 @@
 #include <netinet/in.h>
 
 
-#define MAXEVENTS 64
+#define MAXEVENTS 1024
 int sum = 0;
 int sfd;
 int efd;
-int descriptors[1000];
+int descriptors[10000];
 struct epoll_event event;
 struct epoll_event *events;
 jmethodID readyMethod;
@@ -125,8 +125,6 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JN
                 struct sockaddr addr;
                 socklen_t in_len;
                 int infd;
-                //      char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-                char hbuf[39], sbuf[NI_MAXSERV];
 
                 in_len = sizeof addr;
                 infd = accept(sfd, &addr, &in_len);
@@ -213,9 +211,11 @@ void throwException(JNIEnv *env, char *message, jstring file)
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting(JNIEnv *env, jobject obj, jint fd)
 {
     int s;
-    event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-    s = epoll_ctl(efd, EPOLL_CTL_MOD, fd, &event);
+    struct epoll_event e;
+
+    e.data.fd = fd;
+    e.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+    s = epoll_ctl(efd, EPOLL_CTL_MOD, fd, &e);
     if (s == -1)
     {
         throwException(env, strerror(errno), NULL);
@@ -227,9 +227,11 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting(JNIEnv *
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_stopWriting(JNIEnv *env, jobject obj, jint fd)
 {
     int s;
-    event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-    s = epoll_ctl(efd, EPOLL_CTL_MOD, fd, &event);
+    struct epoll_event e;
+
+    e.data.fd = fd;
+    e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+    s = epoll_ctl(efd, EPOLL_CTL_MOD, fd, &e);
     if (s == -1)
     {
         throwException(env, strerror(errno), NULL);
