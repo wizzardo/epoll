@@ -18,7 +18,7 @@ extern "C" {
  * Method:    listen
  * Signature: (Ljava/lang/String;)Z
  */
-JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_listen
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen
   (JNIEnv *, jobject, jstring);
 
 /*
@@ -27,7 +27,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_listen
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jlong);
 
 /*
  * Class:     com_wizzardo_epoll_EpollServer
@@ -35,7 +35,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening
  * Signature: (I)[I
  */
 JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents
-  (JNIEnv *, jobject, jint);
+  (JNIEnv *, jobject, jlong, jint);
 
 /*
  * Class:     com_wizzardo_epoll_EpollServer
@@ -43,7 +43,7 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents
  * Signature: (I)V
  */
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting
-  (JNIEnv *, jobject, jint);
+  (JNIEnv *, jobject, jlong, jint);
 
 /*
  * Class:     com_wizzardo_epoll_EpollServer
@@ -51,7 +51,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting
  * Signature: (I)V
  */
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_stopWriting
-  (JNIEnv *, jobject, jint);
+  (JNIEnv *, jobject, jlong, jint);
 
 /*
  * Class:     com_wizzardo_epoll_EpollServer

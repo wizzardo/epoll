@@ -4,7 +4,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 
 /**
- * @author: moxa
+ * @author: wizzardo
  * Date: 11/5/13
  */
 public abstract class EpollServer extends Thread {
@@ -13,6 +13,7 @@ public abstract class EpollServer extends Thread {
     //  javah -jni com.wizzardo.epoll.EpollServer
 
     private volatile boolean running = true;
+    private volatile long scope;
 
     static {
         try {
@@ -60,20 +61,20 @@ public abstract class EpollServer extends Thread {
                     switch (event) {
                         case 0: {
 //                            System.out.println("new connection from " + getIp(descriptors[i + 2]) + ":" + descriptors[i + 3]);
-                            onOpen(fd, descriptors[i + 2], descriptors[i + 3]);
+                            onOpenConnection(fd, descriptors[i + 2], descriptors[i + 3]);
                             i += 2;
                             break;
                         }
                         case 1: {
-                            onRead(fd);
+                            readyToRead(fd);
                             break;
                         }
                         case 2: {
-                            onWrite(fd);
+                            readyToWrite(fd);
                             break;
                         }
                         case 3: {
-                            onClose(fd);
+                            onCloseConnection(fd);
                             break;
                         }
 
@@ -89,7 +90,7 @@ public abstract class EpollServer extends Thread {
 
     public void stopServer() {
         running = false;
-        stopListening();
+        stopListening(scope);
     }
 
     public static String getIp(int ip) {
@@ -101,31 +102,44 @@ public abstract class EpollServer extends Thread {
         return sb.toString();
     }
 
-    public abstract void onRead(int fd);
+    public abstract void readyToRead(int fd);
 
-    public abstract void onWrite(int fd);
+    public abstract void readyToWrite(int fd);
 
-    public abstract void onOpen(int fd, int ip, int port);
+    public abstract void onOpenConnection(int fd, int ip, int port);
 
-    public abstract void onClose(int fd);
+    public abstract void onCloseConnection(int fd);
 
     public boolean bind(int port) {
-        return listen(String.valueOf(port));
+        scope = listen(String.valueOf(port));
+        return true;
     }
 
-    private native boolean listen(String port);
+    private native long listen(String port);
 
-    private native boolean stopListening();
+    private native boolean stopListening(long scope);
 
-    public native int[] waitForEvents(int timeout);
+    private native int[] waitForEvents(long scope, int timeout);
+
+    public int[] waitForEvents(int timeout) {
+        return waitForEvents(scope, timeout);
+    }
 
     public int[] waitForEvents() {
-        return waitForEvents(-1);
+        return waitForEvents(scope, -1);
     }
 
-    synchronized public native void startWriting(int fd);
+    public void startWriting(int fd) {
+        startWriting(scope, fd);
+    }
 
-    synchronized public native void stopWriting(int fd);
+    synchronized private native void startWriting(long scope, int fd);
+
+    public void stopWriting(int fd) {
+        stopWriting(scope, fd);
+    }
+
+    synchronized private native void stopWriting(long scope, int fd);
 
     public native void close(int fd);
 

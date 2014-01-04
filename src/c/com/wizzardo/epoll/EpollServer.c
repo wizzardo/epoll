@@ -14,14 +14,14 @@
 
 
 #define MAXEVENTS 1024
-int sum = 0;
-int sfd;
-int efd;
-int descriptors[10000];
-struct epoll_event event;
-struct epoll_event *events;
-jmethodID readyMethod;
 
+struct Scope {
+    int sfd;
+    int efd;
+    int descriptors[10000];
+    struct epoll_event event;
+    struct epoll_event *events;
+};
 
 
 static int create_and_bind(const char *port)
@@ -94,9 +94,16 @@ static int make_socket_non_blocking(int sfd)
 }
 
 
-JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JNIEnv *env, jobject obj, jint timeout)
+JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout)
 {
     int n, i, s, j = 0;
+    struct Scope *scope = (struct Scope *)scopePointer;
+    struct epoll_event *events = scope->events;
+    struct epoll_event event = scope->event;
+    int sfd = scope->sfd;
+    int efd = scope->efd;
+    int *descriptors = scope->descriptors;
+
     if(timeout>0)
         n = epoll_wait(efd, events, MAXEVENTS, timeout);
     else
@@ -208,14 +215,15 @@ void throwException(JNIEnv *env, char *message, jstring file)
 }
 
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting(JNIEnv *env, jobject obj, jint fd)
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
 {
     int s;
     struct epoll_event e;
+    struct Scope *scope = (struct Scope *)scopePointer;
 
     e.data.fd = fd;
     e.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-    s = epoll_ctl(efd, EPOLL_CTL_MOD, fd, &e);
+    s = epoll_ctl((*scope).efd, EPOLL_CTL_MOD, fd, &e);
     if (s == -1)
     {
         throwException(env, strerror(errno), NULL);
@@ -224,14 +232,15 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting(JNIEnv *
     }
 }
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_stopWriting(JNIEnv *env, jobject obj, jint fd)
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_stopWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
 {
     int s;
     struct epoll_event e;
+    struct Scope *scope = (struct Scope *)scopePointer;
 
     e.data.fd = fd;
     e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-    s = epoll_ctl(efd, EPOLL_CTL_MOD, fd, &e);
+    s = epoll_ctl((*scope).efd, EPOLL_CTL_MOD, fd, &e);
     if (s == -1)
     {
         throwException(env, strerror(errno), NULL);
@@ -302,18 +311,20 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_close(JNIEnv *env, jo
     close(fd);
 }
 
-JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening(JNIEnv *env, jobject obj)
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening(JNIEnv *env, jobject obj, jlong scopePointer)
 {
-    free(events);
-
-    return close(sfd) == 0;
+    struct Scope *scope = (struct Scope *)scopePointer;
+    free(scope->events);
+    int s = close(scope->sfd);
+    free(scope);
+    return  s  == 0;
 }
 
-JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring port)
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring port)
 {
     const char *pport = (*env)->GetStringUTFChars(env, port, NULL);
 
-    sfd = create_and_bind(pport);
+    int sfd = create_and_bind(pport);
     if (sfd == -1)
         abort();
 
@@ -328,14 +339,14 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *en
         abort();
     }
 
-    efd = epoll_create1(0);
+    int efd = epoll_create1(0);
     if (efd == -1)
     {
         perror("epoll_create");
         abort();
     }
 
-
+    struct epoll_event event;
     event.data.fd = sfd;
     event.events = EPOLLIN | EPOLLET;
     s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
@@ -345,9 +356,16 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *en
         abort();
     }
 
-    /* Buffer where events are returned */
-    events = calloc(MAXEVENTS, sizeof event);
+    struct Scope *scope;
+    scope = (struct Scope *)malloc(sizeof(struct Scope));
 
-    return 1;
+    /* Buffer where events are returned */
+    (*scope).events = calloc(MAXEVENTS, sizeof event);
+    (*scope).event = event;
+    (*scope).sfd = sfd;
+    (*scope).efd = efd;
+
+    long lp = (long)scope;
+    return lp;
 }
 
