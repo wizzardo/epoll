@@ -2,18 +2,36 @@ package com.wizzardo.epoll;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author: wizzardo
  * Date: 11/5/13
  */
-public abstract class EpollServer extends Thread {
+public abstract class EpollServer<T extends Connection> extends Thread {
     //  gcc -m32 -shared -fpic -o ../../../../../libepoll-server_x32.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollServer.c
     //  gcc      -shared -fpic -o ../../../../../libepoll-server_x64.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollServer.c
     //  javah -jni com.wizzardo.epoll.EpollServer
 
     private volatile boolean running = true;
     private volatile long scope;
+    private long ttl = 30000;
+    private ConcurrentHashMap<Integer, T> connections = new ConcurrentHashMap<Integer, T>();
+    private LinkedList<T> timeouts = new LinkedList<T>();
+    private static ThreadLocal<ByteBuffer> byteBuffer = new ThreadLocal<ByteBuffer>() {
+        @Override
+        protected ByteBuffer initialValue() {
+            return ByteBuffer.allocateDirect(50 * 1024);
+        }
+
+        @Override
+        public ByteBuffer get() {
+            ByteBuffer bb = super.get();
+            bb.clear();
+            return bb;
+        }
+    };
 
     static {
         try {
@@ -53,31 +71,48 @@ public abstract class EpollServer extends Thread {
     public void run() {
         while (running) {
             try {
-
+                long now = System.currentTimeMillis();
                 int[] descriptors = waitForEvents(500);
                 for (int i = 0; i < descriptors.length; i += 2) {
                     final int fd = descriptors[i];
                     int event = descriptors[i + 1];
+                    T connection = null;
                     switch (event) {
                         case 0: {
-//                            System.out.println("new connection from " + getIp(descriptors[i + 2]) + ":" + descriptors[i + 3]);
-                            onOpenConnection(fd, descriptors[i + 2], descriptors[i + 3]);
+                            connection = createConnection(fd, descriptors[i + 2], descriptors[i + 3]);
+                            putConnection(connection);
+                            onOpenConnection(connection);
                             i += 2;
                             break;
                         }
                         case 1: {
-                            readyToRead(fd);
+                            connection = getConnection(fd);
+                            readyToRead(connection);
                             break;
                         }
                         case 2: {
-                            readyToWrite(fd);
+                            connection = getConnection(fd);
+                            readyToWrite(connection);
                             break;
                         }
                         case 3: {
-                            onCloseConnection(fd);
+                            connection = getConnection(fd);
+                            onCloseConnection(connection);
+                            deleteConnection(fd);
                             break;
                         }
+                    }
+                    connection.setLastEvent(now);
+                    timeouts.add(connection);
+                }
 
+                now -= ttl;
+                T connection;
+                while ((connection = timeouts.peekFirst()) != null && connection.getLastEvent() < now) {
+                    connection = deleteConnection(timeouts.removeFirst().fd);
+                    if (connection != null) {
+                        close(connection);
+                        onCloseConnection(connection);
                     }
                 }
 
@@ -88,27 +123,40 @@ public abstract class EpollServer extends Thread {
         }
     }
 
+    public void setTTL(long milliseconds) {
+        ttl = milliseconds;
+    }
+
+    public long getTTL() {
+        return ttl;
+    }
+
     public void stopServer() {
         running = false;
         stopListening(scope);
     }
 
-    public static String getIp(int ip) {
-        StringBuilder sb = new StringBuilder();
-        sb.append((ip >> 24) + (ip < 0 ? 256 : 0)).append(".");
-        sb.append((ip & 16777215) >> 16).append(".");
-        sb.append((ip & 65535) >> 8).append(".");
-        sb.append(ip & 255);
-        return sb.toString();
+    private void putConnection(T connection) {
+        connections.put(connection.fd, connection);
     }
 
-    public abstract void readyToRead(int fd);
+    private T getConnection(int fd) {
+        return connections.get(fd);
+    }
 
-    public abstract void readyToWrite(int fd);
+    private T deleteConnection(int fd) {
+        return connections.remove(fd);
+    }
 
-    public abstract void onOpenConnection(int fd, int ip, int port);
+    abstract protected T createConnection(int fd, int ip, int port);
 
-    public abstract void onCloseConnection(int fd);
+    public abstract void readyToRead(T connection);
+
+    public abstract void readyToWrite(T connection);
+
+    public abstract void onOpenConnection(T connection);
+
+    public abstract void onCloseConnection(T connection);
 
     public boolean bind(int port) {
         scope = listen(String.valueOf(port));
@@ -129,22 +177,43 @@ public abstract class EpollServer extends Thread {
         return waitForEvents(scope, -1);
     }
 
-    public void startWriting(int fd) {
-        startWriting(scope, fd);
+    public void startWriting(T connection) {
+        startWriting(scope, connection.fd);
     }
 
-    synchronized private native void startWriting(long scope, int fd);
+    private native void startWriting(long scope, int fd);
 
-    public void stopWriting(int fd) {
-        stopWriting(scope, fd);
+    public void stopWriting(T connection) {
+        stopWriting(scope, connection.fd);
     }
 
-    synchronized private native void stopWriting(long scope, int fd);
+    private native void stopWriting(long scope, int fd);
 
-    public native void close(int fd);
+    public void close(T connection) {
+        close(connection.fd);
+    }
 
-    public native int read(int fd, ByteBuffer b, int off, int len) throws IOException;
+    private native void close(int fd);
 
-    public native int write(int fd, ByteBuffer b, int off, int len) throws IOException;
+    public int read(T connection, byte[] b, int offset, int length) throws IOException {
+        ByteBuffer bb = byteBuffer.get();
+        int l = Math.min(length, bb.limit());
+        int r = read(connection.fd, bb, 0, l);
+        bb.position(r);
+        bb.flip();
+        bb.get(b, offset, r);
+        return r;
+    }
+
+    public int write(T connection, byte[] b, int offset, int length) throws IOException {
+        ByteBuffer bb = byteBuffer.get();
+        int l = Math.min(length, bb.limit());
+        bb.put(b, offset, l);
+        return write(connection.fd, bb, 0, l);
+    }
+
+    private native int read(int fd, ByteBuffer b, int off, int len) throws IOException;
+
+    private native int write(int fd, ByteBuffer b, int off, int len) throws IOException;
 
 }

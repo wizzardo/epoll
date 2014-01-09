@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 
 /**
  * @author: wizzardo
@@ -19,23 +18,29 @@ public class EpollServerTest {
     @Test
     public void startStopTest() throws InterruptedException {
         EpollServer server = new EpollServer() {
+
             @Override
-            public void readyToRead(int fd) {
+            protected Connection createConnection(int fd, int ip, int port) {
+                return new Connection(fd, ip, port);
             }
 
             @Override
-            public void readyToWrite(int fd) {
+            public void readyToRead(Connection connection) {
             }
 
             @Override
-            public void onOpenConnection(int fd, int ip, int port) {
+            public void readyToWrite(Connection connection) {
             }
 
             @Override
-            public void onCloseConnection(int fd) {
+            public void onOpenConnection(Connection connection) {
+            }
+
+            @Override
+            public void onCloseConnection(Connection connection) {
             }
         };
-        int port = 28991;
+        int port = 9091;
 
         server.bind(port);
         server.start();
@@ -58,14 +63,20 @@ public class EpollServerTest {
     @Test
     public void echoTest() throws InterruptedException {
         EpollServer server = new EpollServer() {
+
             @Override
-            public void readyToRead(int fd) {
-                ByteBuffer bb = ByteBuffer.allocateDirect(1024);
+            protected Connection createConnection(int fd, int ip, int port) {
+                return new Connection(fd, ip, port);
+            }
+
+            @Override
+            public void readyToRead(Connection connection) {
                 try {
-                    int r = read(fd, bb, 0, 1024);
+                    byte[] b = new byte[1024];
+                    int r = read(connection, b, 0, b.length);
                     int w = 0;
                     while (w < r) {
-                        w += write(fd, bb, w, r - w);
+                        w += write(connection, b, w, r - w);
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -73,18 +84,18 @@ public class EpollServerTest {
             }
 
             @Override
-            public void readyToWrite(int fd) {
+            public void readyToWrite(Connection connection) {
             }
 
             @Override
-            public void onOpenConnection(int fd, int ip, int port) {
+            public void onOpenConnection(Connection connection) {
             }
 
             @Override
-            public void onCloseConnection(int fd) {
+            public void onCloseConnection(Connection connection) {
             }
         };
-        int port = 28991;
+        int port = 9090;
 
         server.bind(port);
         server.start();
