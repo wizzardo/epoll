@@ -16,6 +16,7 @@
 #define MAXEVENTS 1024
 
 struct Scope {
+    int maxEvents;
     int sfd;
     int efd;
     int descriptors[10000];
@@ -105,9 +106,9 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JN
     int *descriptors = scope->descriptors;
 
     if(timeout>0)
-        n = epoll_wait(efd, events, MAXEVENTS, timeout);
+        n = epoll_wait(efd, events, scope->maxEvents, timeout);
     else
-        n = epoll_wait(efd, events, MAXEVENTS, -1);
+        n = epoll_wait(efd, events, scope->maxEvents, -1);
 
     for (i = 0; i < n; i++)
     {
@@ -320,7 +321,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening(JNI
     return  s  == 0;
 }
 
-JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring port)
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring port, jint maxEvents)
 {
     const char *pport = (*env)->GetStringUTFChars(env, port, NULL);
 
@@ -360,10 +361,11 @@ JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, 
     scope = (struct Scope *)malloc(sizeof(struct Scope));
 
     /* Buffer where events are returned */
-    (*scope).events = calloc(MAXEVENTS, sizeof event);
+    (*scope).events = calloc(maxEvents, sizeof event);
     (*scope).event = event;
     (*scope).sfd = sfd;
     (*scope).efd = efd;
+    (*scope).maxEvents = maxEvents;
 
     long lp = (long)scope;
     return lp;

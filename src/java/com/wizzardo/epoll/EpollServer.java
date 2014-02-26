@@ -158,12 +158,16 @@ public abstract class EpollServer<T extends Connection> extends Thread {
 
     public abstract void onCloseConnection(T connection);
 
-    public boolean bind(int port) {
-        scope = listen(String.valueOf(port));
+    public boolean bind(int port, int maxEvents) {
+        scope = listen(String.valueOf(port), maxEvents);
         return true;
     }
 
-    private native long listen(String port);
+    public boolean bind(int port) {
+        return bind(port, 100);
+    }
+
+    private native long listen(String port, int maxEvents);
 
     private native boolean stopListening(long scope);
 

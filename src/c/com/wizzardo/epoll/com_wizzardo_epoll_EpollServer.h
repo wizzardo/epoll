@@ -19,7 +19,7 @@ extern "C" {
  * Signature: (Ljava/lang/String;)Z
  */
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen
-  (JNIEnv *, jobject, jstring);
+  (JNIEnv *, jobject, jstring, jint);
 
 /*
  * Class:     com_wizzardo_epoll_EpollServer
