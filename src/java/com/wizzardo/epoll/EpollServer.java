@@ -1,5 +1,7 @@
 package com.wizzardo.epoll;
 
+import com.wizzardo.epoll.readable.ReadableBytes;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
@@ -200,13 +202,19 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     private native void close(int fd);
 
     public int read(T connection, byte[] b, int offset, int length) throws IOException {
+        ByteBuffer bb = read(connection, length);
+        int r = bb.limit();
+        bb.get(b, offset, r);
+        return r;
+    }
+
+    public ByteBuffer read(T connection, int length) throws IOException {
         ByteBuffer bb = byteBuffer.get();
         int l = Math.min(length, bb.limit());
         int r = read(connection.fd, bb, 0, l);
         bb.position(r);
         bb.flip();
-        bb.get(b, offset, r);
-        return r;
+        return bb;
     }
 
     public int write(T connection, byte[] b, int offset, int length) throws IOException {
@@ -214,6 +222,16 @@ public abstract class EpollServer<T extends Connection> extends Thread {
         int l = Math.min(length, bb.limit());
         bb.put(b, offset, l);
         return write(connection.fd, bb, 0, l);
+    }
+
+    public int write(T connection, ReadableBytes readable) throws IOException {
+        ByteBuffer bb = byteBuffer.get();
+        int r = readable.read(bb);
+        int written = write(connection.fd, bb, 0, r);
+        if (written != r)
+            readable.unread(written - r);
+
+        return written;
     }
 
     private native int read(int fd, ByteBuffer b, int off, int len) throws IOException;

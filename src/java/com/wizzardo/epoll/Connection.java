@@ -42,4 +42,26 @@ public class Connection {
     long getLastEvent(){
         return lastEvent;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Connection that = (Connection) o;
+
+        if (fd != that.fd) return false;
+        if (ip != that.ip) return false;
+        if (port != that.port) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = fd;
+        result = 31 * result + ip;
+        result = 31 * result + port;
+        return result;
+    }
 }
