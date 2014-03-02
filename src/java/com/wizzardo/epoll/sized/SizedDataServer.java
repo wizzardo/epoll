@@ -1,6 +1,7 @@
 package com.wizzardo.epoll.sized;
 
-import com.wizzardo.epoll.*;
+import com.wizzardo.epoll.Connection;
+import com.wizzardo.epoll.EpollServer;
 import com.wizzardo.epoll.readable.ReadableBytes;
 import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.io.BytesTools;
@@ -16,22 +17,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author: wizzardo
  * Date: 2/27/14
  */
-public class SizedDataServer extends EpollServer<Connection> {
+public abstract class SizedDataServer<T extends SizedDataServerConnection> extends EpollServer<T> {
     private ConcurrentHashMap<Connection, Queue<ReadableBytes>> sending = new ConcurrentHashMap<Connection, Queue<ReadableBytes>>();
     private Map<Connection, FixedSizeWritableByteArray> reading = new ConcurrentHashMap<Connection, FixedSizeWritableByteArray>();
-    private ThreadPool threadPool;
+    protected ThreadPool threadPool;
 
     public SizedDataServer(int threads) {
         threadPool = new ThreadPool(threads);
     }
 
     @Override
-    protected Connection createConnection(int fd, int ip, int port) {
-        return new Connection(fd, ip, port);
-    }
-
-    @Override
-    public void readyToRead(final Connection connection) {
+    public void readyToRead(final T connection) {
         FixedSizeWritableByteArray r = reading.get(connection);
         if (r == null) {
             r = new FixedSizeWritableByteArray(4);
@@ -42,6 +38,8 @@ public class SizedDataServer extends EpollServer<Connection> {
                 while ((bb == null || bb.limit() > 0) && r.getRemaining() > 0) {
                     bb = read(connection, r.getRemaining());
                     r.write(bb);
+                    if (r.size() > 4)
+                        connection.read(r.size() - r.getRemaining(), r.size());
                 }
             } catch (IOException e) {
                 close(connection);
@@ -65,7 +63,7 @@ public class SizedDataServer extends EpollServer<Connection> {
     }
 
     @Override
-    public void readyToWrite(Connection connection) {
+    public void readyToWrite(T connection) {
         Queue<ReadableBytes> l = sending.get(connection);
         if (l == null || l.isEmpty()) {
             stopWriting(connection);
@@ -74,7 +72,7 @@ public class SizedDataServer extends EpollServer<Connection> {
         createTaskToSendData(connection, l);
     }
 
-    public void send(Connection connection, ReadableBytes readable) {
+    public void send(T connection, ReadableBytes readable) {
         Queue<ReadableBytes> l = sending.get(connection);
         if (l == null) {
             Queue<ReadableBytes> old = sending.putIfAbsent(connection, l = new ConcurrentLinkedQueue<ReadableBytes>());
@@ -86,23 +84,26 @@ public class SizedDataServer extends EpollServer<Connection> {
         createTaskToSendData(connection, l);
     }
 
-    private void createTaskToSendData(final Connection connection, final Queue<ReadableBytes> l) {
+    private void createTaskToSendData(final T connection, final Queue<ReadableBytes> l) {
         threadPool.add(new Runnable() {
             @Override
             public void run() {
                 ReadableBytes readable;
-                while ((readable = l.peek()) != null) {
-                    try {
-                        while (!readable.isComplete() && write(connection, readable) > 0) {
-                        }
-                        if (!readable.isComplete()) {
-                            startWriting(connection);
-                            return;
-                        }
+                synchronized (connection) {
+                    while ((readable = l.peek()) != null) {
+                        try {
+                            while (!readable.isComplete() && write(connection, readable) > 0) {
+                            }
+                            if (!readable.isComplete()) {
+                                startWriting(connection);
+                                return;
+                            }
 
-                        l.poll();
-                    } catch (IOException e) {
-                        close(connection);
+                            l.poll();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            close(connection);
+                        }
                     }
                 }
             }
@@ -110,22 +111,21 @@ public class SizedDataServer extends EpollServer<Connection> {
     }
 
     @Override
-    public void onOpenConnection(Connection connection) {
+    public void onOpenConnection(T connection) {
     }
 
     @Override
-    public void onCloseConnection(Connection connection) {
+    public void onCloseConnection(T connection) {
         sending.remove(connection);
         reading.remove(connection);
     }
 
     @Override
-    public void close(Connection connection) {
+    public void close(T connection) {
         super.close(connection);
         sending.remove(connection);
         reading.remove(connection);
     }
 
-    protected void handleData(Connection connection, byte[] data) {
-    }
+    protected abstract void handleData(T connection, byte[] data);
 }
