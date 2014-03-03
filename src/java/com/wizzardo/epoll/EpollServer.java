@@ -212,7 +212,8 @@ public abstract class EpollServer<T extends Connection> extends Thread {
         ByteBuffer bb = byteBuffer.get();
         int l = Math.min(length, bb.limit());
         int r = read(connection.fd, bb, 0, l);
-        bb.position(r);
+        if (r > 0)
+            bb.position(r);
         bb.flip();
         return bb;
     }
@@ -229,7 +230,7 @@ public abstract class EpollServer<T extends Connection> extends Thread {
         int r = readable.read(bb);
         int written = write(connection.fd, bb, 0, r);
         if (written != r)
-            readable.unread(written - r);
+            readable.unread(r - written);
 
         return written;
     }

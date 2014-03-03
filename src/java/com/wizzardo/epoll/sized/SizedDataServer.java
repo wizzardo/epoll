@@ -28,18 +28,22 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
 
     @Override
     public void readyToRead(final T connection) {
+//        System.out.println("readyToRead: " + connection);
         FixedSizeWritableByteArray r = reading.get(connection);
         if (r == null) {
             r = new FixedSizeWritableByteArray(4);
+            reading.put(connection, r);
         }
         if (!r.isComplete()) {
             try {
                 ByteBuffer bb = null;
-                while ((bb == null || bb.limit() > 0) && r.getRemaining() > 0) {
-                    bb = read(connection, r.getRemaining());
+                while ((bb == null || bb.limit() > 0) && r.remaining() > 0) {
+                    bb = read(connection, r.remaining());
+//                    System.out.println("remaining: "+r.remaining());
                     r.write(bb);
+//                    System.out.println("read: " + bb.limit() + "\t" + r.offset() + "/" + r.size());
                     if (r.size() > 4)
-                        connection.read(r.size() - r.getRemaining(), r.size());
+                        connection.read(r.offset(), r.size());
                 }
             } catch (IOException e) {
                 close(connection);

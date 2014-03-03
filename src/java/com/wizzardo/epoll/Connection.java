@@ -64,4 +64,9 @@ public class Connection {
         result = 31 * result + port;
         return result;
     }
+
+    @Override
+    public String toString() {
+        return fd+" "+getIp()+":"+port;
+    }
 }
