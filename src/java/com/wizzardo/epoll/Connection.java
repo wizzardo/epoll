@@ -5,8 +5,8 @@ package com.wizzardo.epoll;
  * Date: 1/6/14
  */
 public class Connection {
-    final int fd;
-    private int ip, port;
+    protected final int fd;
+    protected final int ip, port;
     private String ipString;
     private long lastEvent;
 
@@ -39,7 +39,7 @@ public class Connection {
         this.lastEvent = lastEvent;
     }
 
-    long getLastEvent(){
+    long getLastEvent() {
         return lastEvent;
     }
 
@@ -67,6 +67,6 @@ public class Connection {
 
     @Override
     public String toString() {
-        return fd+" "+getIp()+":"+port;
+        return fd + " " + getIp() + ":" + port;
     }
 }
