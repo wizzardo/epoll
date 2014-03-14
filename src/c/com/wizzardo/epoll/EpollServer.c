@@ -29,7 +29,7 @@ static int create_and_bind(const char *port)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
-    int s, sfd;
+    int s, sfd, on;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;    /* Return IPv4 and IPv6 choices */
@@ -49,6 +49,13 @@ static int create_and_bind(const char *port)
         sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (sfd == -1)
             continue;
+
+        on = 1;
+        s =  setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+        if (s != 0) {
+            fprintf(stderr, "can not set SO_REUSEADDR: %s\n", gai_strerror(s));
+            return -1;
+        }
 
         s = bind(sfd, rp->ai_addr, rp->ai_addrlen);
         if (s == 0)
