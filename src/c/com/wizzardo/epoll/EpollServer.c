@@ -258,9 +258,9 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_stopWriting(JNIEnv *e
 }
 
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_read(JNIEnv *env, jclass clazz, jint fd, jobject bb, jint offset, jint length)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_read(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length)
 {
-    jbyte *buf = (*env)->GetDirectBufferAddress(env, bb);
+    jbyte *buf =(jbyte *) bb;
     if (buf == NULL)
     {
         return -1;
@@ -285,9 +285,9 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_read(JNIEnv *env, jcl
 }
 
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_write(JNIEnv *env, jclass clazz, jint fd, jobject bb, jint offset, jint length)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_write(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length)
 {
-    jbyte *buf = (*env)->GetDirectBufferAddress(env, bb);
+    jbyte *buf = (jbyte *) bb;
     if (buf == NULL)
     {
         return;
@@ -378,3 +378,6 @@ JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, 
     return lp;
 }
 
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_getAddress(JNIEnv *env, jclass cl, jobject bb){
+    return (long) (*env)->GetDirectBufferAddress(env, bb);
+}

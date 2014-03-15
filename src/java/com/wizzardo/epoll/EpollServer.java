@@ -21,16 +21,16 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     private long ttl = 30000;
     private ConcurrentHashMap<Integer, T> connections = new ConcurrentHashMap<Integer, T>();
     private LinkedList<T> timeouts = new LinkedList<T>();
-    private static ThreadLocal<ByteBuffer> byteBuffer = new ThreadLocal<ByteBuffer>() {
+    private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
         @Override
-        protected ByteBuffer initialValue() {
-            return ByteBuffer.allocateDirect(50 * 1024);
+        protected ByteBufferWrapper initialValue() {
+            return new ByteBufferWrapper(ByteBuffer.allocateDirect(50 * 1024));
         }
 
         @Override
-        public ByteBuffer get() {
-            ByteBuffer bb = super.get();
-            bb.clear();
+        public ByteBufferWrapper get() {
+            ByteBufferWrapper bb = super.get();
+            bb.buffer.clear();
             return bb;
         }
     };
@@ -209,34 +209,35 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     }
 
     public ByteBuffer read(T connection, int length) throws IOException {
-        ByteBuffer bb = byteBuffer.get();
+        ByteBufferWrapper bb = byteBuffer.get();
         int l = Math.min(length, bb.limit());
-        int r = read(connection.fd, bb, 0, l);
+        int r = read(connection.fd, bb.address, 0, l);
         if (r > 0)
             bb.position(r);
         bb.flip();
-        return bb;
+        return bb.buffer;
     }
 
     public int write(T connection, byte[] b, int offset, int length) throws IOException {
-        ByteBuffer bb = byteBuffer.get();
+        ByteBufferWrapper bb = byteBuffer.get();
         int l = Math.min(length, bb.limit());
         bb.put(b, offset, l);
-        return write(connection.fd, bb, 0, l);
+        return write(connection.fd, bb.address, 0, l);
     }
 
     public int write(T connection, ReadableBytes readable) throws IOException {
-        ByteBuffer bb = byteBuffer.get();
-        int r = readable.read(bb);
-        int written = write(connection.fd, bb, 0, r);
+        ByteBufferWrapper bb = byteBuffer.get();
+        int r = readable.read(bb.buffer);
+        int written = write(connection.fd, bb.address, 0, r);
         if (written != r)
             readable.unread(r - written);
 
         return written;
     }
 
-    private native int read(int fd, ByteBuffer b, int off, int len) throws IOException;
+    private native int read(int fd, long bbPointer, int off, int len) throws IOException;
 
-    private native int write(int fd, ByteBuffer b, int off, int len) throws IOException;
+    private native int write(int fd, long bbPointer, int off, int len) throws IOException;
 
+    native static long getAddress(ByteBuffer buffer);
 }

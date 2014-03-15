@@ -16,7 +16,7 @@ extern "C" {
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    listen
- * Signature: (Ljava/lang/String;)Z
+ * Signature: (Ljava/lang/String;I)J
  */
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen
   (JNIEnv *, jobject, jstring, jint);
@@ -24,7 +24,7 @@ JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    stopListening
- * Signature: ()Z
+ * Signature: (J)Z
  */
 JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening
   (JNIEnv *, jobject, jlong);
@@ -32,7 +32,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    waitForEvents
- * Signature: (I)[I
+ * Signature: (JI)[I
  */
 JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents
   (JNIEnv *, jobject, jlong, jint);
@@ -40,7 +40,7 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    startWriting
- * Signature: (I)V
+ * Signature: (JI)V
  */
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting
   (JNIEnv *, jobject, jlong, jint);
@@ -48,7 +48,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    stopWriting
- * Signature: (I)V
+ * Signature: (JI)V
  */
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_stopWriting
   (JNIEnv *, jobject, jlong, jint);
@@ -64,18 +64,26 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_close
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    read
- * Signature: (ILjava/nio/ByteBuffer;II)I
+ * Signature: (IJII)I
  */
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_read
-  (JNIEnv *, jobject, jint, jobject, jint, jint);
+  (JNIEnv *, jobject, jint, jlong, jint, jint);
 
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    write
- * Signature: (ILjava/nio/ByteBuffer;II)I
+ * Signature: (IJII)I
  */
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_write
-  (JNIEnv *, jobject, jint, jobject, jint, jint);
+  (JNIEnv *, jobject, jint, jlong, jint, jint);
+
+/*
+ * Class:     com_wizzardo_epoll_EpollServer
+ * Method:    getAddress
+ * Signature: (Ljava/nio/ByteBuffer;)J
+ */
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_getAddress
+  (JNIEnv *, jclass, jobject);
 
 #ifdef __cplusplus
 }
