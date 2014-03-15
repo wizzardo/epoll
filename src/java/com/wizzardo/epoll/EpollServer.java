@@ -7,6 +7,9 @@ import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.wizzardo.epoll.Utils.readInt;
+import static com.wizzardo.epoll.Utils.readShort;
+
 /**
  * @author: wizzardo
  * Date: 11/5/13
@@ -34,6 +37,8 @@ public abstract class EpollServer<T extends Connection> extends Thread {
             return bb;
         }
     };
+
+    private ByteBuffer events;
 
     static {
         try {
@@ -71,20 +76,28 @@ public abstract class EpollServer<T extends Connection> extends Thread {
 
     @Override
     public void run() {
+        byte[] events = new byte[this.events.capacity()];
         while (running) {
             try {
+                this.events.position(0);
                 long now = System.currentTimeMillis();
-                int[] descriptors = waitForEvents(500);
-                for (int i = 0; i < descriptors.length; i += 2) {
-                    final int fd = descriptors[i];
-                    int event = descriptors[i + 1];
+                int r = waitForEvents(500);
+//                System.out.println("events length: "+r);
+                this.events.limit(r);
+                this.events.get(events, 0, r);
+                int i = 0;
+                while (i < r) {
+                    int event = events[i];
+                    i++;
+                    final int fd = readInt(events, i);
+                    i += 4;
                     T connection = null;
                     switch (event) {
                         case 0: {
-                            connection = createConnection(fd, descriptors[i + 2], descriptors[i + 3]);
+                            connection = createConnection(fd, readInt(events, i), readShort(events, i + 4));
                             putConnection(connection);
                             onOpenConnection(connection);
-                            i += 2;
+                            i += 6;
                             break;
                         }
                         case 1: {
@@ -161,7 +174,8 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     public abstract void onCloseConnection(T connection);
 
     public boolean bind(int port, int maxEvents) {
-        scope = listen(String.valueOf(port), maxEvents);
+        events = ByteBuffer.allocateDirect((maxEvents + 500) * 11);
+        scope = listen(String.valueOf(port), maxEvents, events);
         return true;
     }
 
@@ -169,17 +183,17 @@ public abstract class EpollServer<T extends Connection> extends Thread {
         return bind(port, 100);
     }
 
-    private native long listen(String port, int maxEvents);
+    private native long listen(String port, int maxEvents, ByteBuffer events);
 
     private native boolean stopListening(long scope);
 
-    private native int[] waitForEvents(long scope, int timeout);
+    private native int waitForEvents(long scope, int timeout);
 
-    public int[] waitForEvents(int timeout) {
+    public int waitForEvents(int timeout) {
         return waitForEvents(scope, timeout);
     }
 
-    public int[] waitForEvents() {
+    public int waitForEvents() {
         return waitForEvents(scope, -1);
     }
 

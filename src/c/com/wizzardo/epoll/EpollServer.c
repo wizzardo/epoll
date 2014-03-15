@@ -19,7 +19,7 @@ struct Scope {
     int maxEvents;
     int sfd;
     int efd;
-    int descriptors[10000];
+    jbyte* jEvents;
     struct epoll_event event;
     struct epoll_event *events;
 };
@@ -101,8 +101,14 @@ static int make_socket_non_blocking(int sfd)
     return 0;
 }
 
+static void intToBytes(int i, char* b){
+    b[0] = (i >> 24) & 0xff;
+    b[1] = (i >> 16) & 0xff;
+    b[2] = (i >> 8) & 0xff;
+    b[3] = (i) & 0xff;
+}
 
-JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout)
 {
     int n, i, s, j = 0;
     struct Scope *scope = (struct Scope *)scopePointer;
@@ -110,13 +116,14 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JN
     struct epoll_event event = scope->event;
     int sfd = scope->sfd;
     int efd = scope->efd;
-    int *descriptors = scope->descriptors;
+    jbyte *jEvents = scope->jEvents;
 
     if(timeout>0)
         n = epoll_wait(efd, events, scope->maxEvents, timeout);
     else
         n = epoll_wait(efd, events, scope->maxEvents, -1);
 
+//    fprintf(stderr, "get %d events\n", n);
     for (i = 0; i < n; i++)
     {
         if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (events[i].events & EPOLLRDHUP) || (!(events[i].events & EPOLLIN) && !(events[i].events & EPOLLOUT)))
@@ -125,9 +132,12 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JN
                ready for reading (why were we notified then?) */
 //            fprintf(stderr, "connection closed for fd %d\n", events[i].data.fd);
             close(events[i].data.fd);
-            descriptors[j] = events[i].data.fd;
-            descriptors[j + 1] = 3; // 0 - close connection
-            j += 2;
+
+            jEvents[j] = 3;  // close connection
+            j ++;
+            intToBytes(events[i].data.fd, &jEvents[j]);
+            j += 4;
+
             continue;
         }
 
@@ -159,14 +169,14 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JN
                 }
 //                fprintf(stderr, "new connection from  %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", addr.sa_data[0], addr.sa_data[1], addr.sa_data[2], addr.sa_data[3], addr.sa_data[4], addr.sa_data[5], addr.sa_data[6], addr.sa_data[7], addr.sa_data[8], addr.sa_data[9], addr.sa_data[10], addr.sa_data[11], addr.sa_data[12], addr.sa_data[13]);
 
-                int port = (addr.sa_data[0] < 0 ? 256 + addr.sa_data[0] : addr.sa_data[0]) << 8;
-                port += (addr.sa_data[1] < 0 ? 256 + addr.sa_data[1] : addr.sa_data[1]);
-
-                int ip = (addr.sa_data[2] < 0 ? 256 + addr.sa_data[2] : addr.sa_data[2]) << 24;
-                ip += (addr.sa_data[3] < 0 ? 256 + addr.sa_data[3] : addr.sa_data[3]) << 16;
-                ip += (addr.sa_data[4] < 0 ? 256 + addr.sa_data[4] : addr.sa_data[4]) << 8;
-                ip += (addr.sa_data[5] < 0 ? 256 + addr.sa_data[5] : addr.sa_data[5]);
-//                fprintf(stderr, "new connection from  %d %d \n", ip, port);
+//                int port = (addr.sa_data[0] < 0 ? 256 + addr.sa_data[0] : addr.sa_data[0]) << 8;
+//                port += (addr.sa_data[1] < 0 ? 256 + addr.sa_data[1] : addr.sa_data[1]);
+//
+//                int ip = (addr.sa_data[2] < 0 ? 256 + addr.sa_data[2] : addr.sa_data[2]) << 24;
+//                ip += (addr.sa_data[3] < 0 ? 256 + addr.sa_data[3] : addr.sa_data[3]) << 16;
+//                ip += (addr.sa_data[4] < 0 ? 256 + addr.sa_data[4] : addr.sa_data[4]) << 8;
+//                ip += (addr.sa_data[5] < 0 ? 256 + addr.sa_data[5] : addr.sa_data[5]);
+//                fprintf(stderr, "new connection from  %d %d %d \n",infd, ip, port);
 
                 s = make_socket_non_blocking(infd);
                 if (s == -1)
@@ -181,12 +191,21 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JN
                     abort();
                 }
 
-                descriptors[j] = infd;
-                descriptors[j + 1] = 0; // 0 - new connection
 
-                descriptors[j + 2] = ip;
-                descriptors[j + 3] = port;
+                jEvents[j] = 0; // 0 - new connection
+                j ++;
+                intToBytes(infd, &jEvents[j]);
                 j += 4;
+
+                jEvents[j] = addr.sa_data[2];
+                jEvents[j+1] = addr.sa_data[3];
+                jEvents[j+2] = addr.sa_data[4];
+                jEvents[j+3] = addr.sa_data[5];
+                j += 4;
+
+                jEvents[j] = addr.sa_data[0];
+                jEvents[j+1] = addr.sa_data[1];
+                j += 2;
             }
             continue;
         }
@@ -200,17 +219,15 @@ JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JN
 //
 //                fprintf(stderr, " data on descriptor %d\n", events[i].data.fd);
 
-            //(*env)->CallVoidMethod(env, obj, readyMethod, events[i].data.fd);
-            descriptors[j] = events[i].data.fd;
-            descriptors[j + 1] = (events[i].events & EPOLLOUT) ? 2 : 1; // 2-write; 1-read
-            j += 2;
+
+            jEvents[j] = (events[i].events & EPOLLOUT) ? 2 : 1; // 2-write; 1-read
+            j ++;
+            intToBytes(events[i].data.fd, &jEvents[j]);
+            j += 4;
         }
     }
 
-    jintArray array = (*env)->NewIntArray(env, j);
-    (*env)->SetIntArrayRegion(env, array, 0 , j, descriptors);  // copy
-
-    return array;
+    return j;
 }
 
 void throwException(JNIEnv *env, char *message, jstring file)
@@ -328,7 +345,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening(JNI
     return  s  == 0;
 }
 
-JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring port, jint maxEvents)
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring port, jint maxEvents, jobject bb)
 {
     const char *pport = (*env)->GetStringUTFChars(env, port, NULL);
 
@@ -373,6 +390,7 @@ JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, 
     (*scope).sfd = sfd;
     (*scope).efd = efd;
     (*scope).maxEvents = maxEvents;
+    (*scope).jEvents = (*env)->GetDirectBufferAddress(env, bb);
 
     long lp = (long)scope;
     return lp;

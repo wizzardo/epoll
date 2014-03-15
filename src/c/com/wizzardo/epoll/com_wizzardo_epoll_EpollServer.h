@@ -16,10 +16,10 @@ extern "C" {
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    listen
- * Signature: (Ljava/lang/String;I)J
+ * Signature: (Ljava/lang/String;ILjava/nio/ByteBuffer;)J
  */
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen
-  (JNIEnv *, jobject, jstring, jint);
+  (JNIEnv *, jobject, jstring, jint, jobject);
 
 /*
  * Class:     com_wizzardo_epoll_EpollServer
@@ -32,9 +32,9 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening
 /*
  * Class:     com_wizzardo_epoll_EpollServer
  * Method:    waitForEvents
- * Signature: (JI)[I
+ * Signature: (JI)I
  */
-JNIEXPORT jintArray JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents
   (JNIEnv *, jobject, jlong, jint);
 
 /*
