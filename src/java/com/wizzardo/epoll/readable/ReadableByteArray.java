@@ -9,7 +9,7 @@ import java.nio.ByteBuffer;
  */
 public class ReadableByteArray implements ReadableBytes {
     protected byte[] bytes;
-    protected int offset, length;
+    protected int offset, length, position;
 
     public ReadableByteArray(byte[] bytes) {
         this(bytes, 0, bytes.length);
@@ -19,14 +19,14 @@ public class ReadableByteArray implements ReadableBytes {
         this.bytes = bytes;
         this.offset = offset;
         this.length = length;
+        position = offset;
     }
 
     @Override
     public int read(ByteBuffer byteBuffer) {
-        int r = Math.min(byteBuffer.remaining(), length);
+        int r = Math.min(byteBuffer.remaining(), length + offset - position);
         byteBuffer.put(bytes, offset, r);
-        offset += r;
-        length -= r;
+        position += r;
         return r;
     }
 
@@ -34,14 +34,21 @@ public class ReadableByteArray implements ReadableBytes {
     public void unread(int i) {
         if (i < 0)
             throw new IllegalArgumentException("can't unread negative value: " + i);
-        if (i > offset)
+        if (position - i < offset)
             throw new IllegalArgumentException("can't unread value bigger than offset (" + offset + "): " + i);
-        offset -= i;
-        length += i;
+        position -= i;
     }
 
     @Override
     public boolean isComplete() {
-        return length == 0;
+        return length == position - offset;
+    }
+
+    public int remains() {
+        return length + offset - position;
+    }
+
+    public int processed() {
+        return position - offset;
     }
 }
