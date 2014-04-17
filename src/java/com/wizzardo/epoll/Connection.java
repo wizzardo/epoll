@@ -9,6 +9,7 @@ public class Connection {
     protected final int ip, port;
     private String ipString;
     private long lastEvent;
+    private volatile boolean alive = true;
 
     public Connection(int fd, int ip, int port) {
         this.fd = fd;
@@ -41,6 +42,14 @@ public class Connection {
 
     long getLastEvent() {
         return lastEvent;
+    }
+
+    public boolean isAlive(){
+        return alive;
+    }
+
+    void setIsAlive(boolean isAlive) {
+        alive = isAlive;
     }
 
     @Override

@@ -218,18 +218,21 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     }
 
     public void startWriting(T connection) {
-        startWriting(scope, connection.fd);
+        if (connection.isAlive())
+            startWriting(scope, connection.fd);
     }
 
     private native void startWriting(long scope, int fd);
 
     public void stopWriting(T connection) {
-        stopWriting(scope, connection.fd);
+        if (connection.isAlive())
+            stopWriting(scope, connection.fd);
     }
 
     private native void stopWriting(long scope, int fd);
 
     public void close(T connection) {
+        connection.setIsAlive(false);
         close(connection.fd);
     }
 
@@ -245,7 +248,7 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     public ByteBuffer read(T connection, int length) throws IOException {
         ByteBufferWrapper bb = byteBuffer.get();
         int l = Math.min(length, bb.limit());
-        int r = read(connection.fd, bb.address, 0, l);
+        int r = connection.isAlive() ? read(connection.fd, bb.address, 0, l) : -1;
         if (r > 0)
             bb.position(r);
         bb.flip();
@@ -262,7 +265,7 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     public int write(T connection, ReadableBytes readable) throws IOException {
         ByteBufferWrapper bb = byteBuffer.get();
         int r = readable.read(bb.buffer);
-        int written = write(connection.fd, bb.address, 0, r);
+        int written = connection.isAlive() ? write(connection.fd, bb.address, 0, r) : -1;
         if (written != r)
             readable.unread(r - written);
 
