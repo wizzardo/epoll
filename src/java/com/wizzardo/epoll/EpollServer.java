@@ -3,9 +3,9 @@ package com.wizzardo.epoll;
 import com.wizzardo.epoll.readable.ReadableBytes;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static com.wizzardo.epoll.Utils.readInt;
 import static com.wizzardo.epoll.Utils.readShort;
@@ -22,7 +22,7 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     private volatile boolean running = true;
     private volatile long scope;
     private long ttl = 30000;
-    private ConcurrentHashMap<Integer, T> connections = new ConcurrentHashMap<Integer, T>();
+    private T[] connections;
     private LinkedList<T> timeouts = new LinkedList<T>();
     private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
         @Override
@@ -152,15 +152,23 @@ public abstract class EpollServer<T extends Connection> extends Thread {
     }
 
     private void putConnection(T connection) {
-        connections.put(connection.fd, connection);
+        if (connections == null || connections.length <= connection.fd) {
+            T[] array = (T[]) Array.newInstance(connection.getClass(), connection.fd * 3 / 2);
+            if (connections != null)
+                System.arraycopy(connections, 0, array, 0, connections.length);
+            connections = array;
+        }
+        connections[connection.fd] = connection;
     }
 
     private T getConnection(int fd) {
-        return connections.get(fd);
+        return connections[fd];
     }
 
     private T deleteConnection(int fd) {
-        return connections.remove(fd);
+        T connection = connections[fd];
+        connections[fd] = null;
+        return connection;
     }
 
     abstract protected T createConnection(int fd, int ip, int port);
