@@ -173,17 +173,29 @@ public abstract class EpollServer<T extends Connection> extends Thread {
 
     public abstract void onCloseConnection(T connection);
 
-    public boolean bind(int port, int maxEvents) {
+    public boolean bind(String host, int port, int maxEvents) {
         events = ByteBuffer.allocateDirect((maxEvents + 500) * 11);
-        scope = listen(String.valueOf(port), maxEvents, events);
+        scope = listen(host, String.valueOf(port), maxEvents, events);
         return true;
+    }
+
+    public boolean bind(int port, int maxEvents) {
+        return bind(null, port, maxEvents);
     }
 
     public boolean bind(int port) {
         return bind(port, 100);
     }
 
-    private native long listen(String port, int maxEvents, ByteBuffer events);
+    public boolean bind(String host, int port) {
+        return bind(host, port, 100);
+    }
+
+    private long listen(String port, int maxEvents, ByteBuffer events) {
+        return listen(null, port, maxEvents, events);
+    }
+
+    private native long listen(String host, String port, int maxEvents, ByteBuffer events);
 
     private native boolean stopListening(long scope);
 

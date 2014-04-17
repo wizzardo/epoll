@@ -25,7 +25,7 @@ struct Scope {
 };
 
 
-static int create_and_bind(const char *port)
+static int create_and_bind(const char *host, const char *port)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -34,15 +34,15 @@ static int create_and_bind(const char *port)
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;    /* Return IPv4 and IPv6 choices */
     hints.ai_socktype = SOCK_STREAM;    /* We want a TCP socket */
-    hints.ai_flags = AI_PASSIVE;    /* All interfaces */
+    hints.ai_flags = AI_PASSIVE;    /* All interfaces, will be ignored if host is not null */
 
-    s = getaddrinfo(NULL, port, &hints, &result);
+    s = getaddrinfo(host, port, &hints, &result);
     if (s != 0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
         return -1;
     }
-    fprintf(stderr, "bind on port: %s\n", port);
+    fprintf(stderr, "bind on: %s:%s\n", (host == NULL? "ANY":host), port);
 
     for (rp = result; rp != NULL; rp = rp->ai_next)
     {
@@ -130,7 +130,15 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JNIEnv 
         {
             /* An error has occured on this fd, or the socket is not
                ready for reading (why were we notified then?) */
-//            fprintf(stderr, "connection closed for fd %d\n", events[i].data.fd);
+//            fprintf(stderr, "connection closed for fd %d, event: %d\n", events[i].data.fd, events[i].events);
+//
+//            int       error = 0;
+//            socklen_t errlen = sizeof(error);
+//            if (getsockopt(events[i].data.fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errlen) == 0)
+//            {
+//                printf("error = %s\n", strerror(error));
+//            }
+
             close(events[i].data.fd);
 
             jEvents[j] = 3;  // close connection
@@ -345,11 +353,12 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening(JNI
     return  s  == 0;
 }
 
-JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring port, jint maxEvents, jobject bb)
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring host, jstring port, jint maxEvents, jobject bb)
 {
     const char *pport = (*env)->GetStringUTFChars(env, port, NULL);
+    const char *hhost = host == NULL? NULL:((*env)->GetStringUTFChars(env, host, NULL));
 
-    int sfd = create_and_bind(pport);
+    int sfd = create_and_bind(hhost, pport);
     if (sfd == -1)
         abort();
 

@@ -19,7 +19,7 @@ extern "C" {
  * Signature: (Ljava/lang/String;ILjava/nio/ByteBuffer;)J
  */
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen
-  (JNIEnv *, jobject, jstring, jint, jobject);
+  (JNIEnv *, jobject, jstring, jstring, jint, jobject);
 
 /*
  * Class:     com_wizzardo_epoll_EpollServer

@@ -118,7 +118,7 @@ public class EpollServerTest {
         server.stopServer();
     }
 
-//    @Test
+    //    @Test
     public void httpTest() throws InterruptedException {
         EpollServer server = new EpollServer() {
 
@@ -248,6 +248,71 @@ public class EpollServerTest {
         time = System.currentTimeMillis() - time;
         System.out.println("for " + time + "ms");
         System.out.println(total.get() * 1000.0 / time / 1024.0 / 1024.0);
+        server.stopServer();
+    }
+
+    @Test
+    public void hostBindTest() throws InterruptedException {
+        EpollServer server = new EpollServer() {
+
+            @Override
+            protected Connection createConnection(int fd, int ip, int port) {
+                return new Connection(fd, ip, port);
+            }
+
+            @Override
+            public void readyToRead(Connection connection) {
+                try {
+                    byte[] b = new byte[1024];
+                    int r = read(connection, b, 0, b.length);
+                    int w = 0;
+                    while (w < r) {
+                        w += write(connection, b, w, r - w);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void readyToWrite(Connection connection) {
+            }
+
+            @Override
+            public void onOpenConnection(Connection connection) {
+            }
+
+            @Override
+            public void onCloseConnection(Connection connection) {
+            }
+        };
+        int port = 9090;
+        String host = "172.19.59.197";
+
+        server.bind(host, port);
+        server.start();
+
+        String message = null;
+        try {
+            new Socket("localhost", port);
+        } catch (IOException e) {
+            message = e.getMessage();
+        }
+        Assert.assertEquals("Connection refused", message);
+
+        try {
+            Socket s = new Socket(host, port);
+            OutputStream out = s.getOutputStream();
+            out.write("hello world!".getBytes());
+
+            InputStream in = s.getInputStream();
+            byte[] b = new byte[1024];
+            int r = in.read(b);
+
+            Assert.assertEquals("hello world!", new String(b, 0, r));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         server.stopServer();
     }
 }
