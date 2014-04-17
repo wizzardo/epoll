@@ -25,7 +25,7 @@ public class ReadableByteArray implements ReadableBytes {
     @Override
     public int read(ByteBuffer byteBuffer) {
         int r = Math.min(byteBuffer.remaining(), length + offset - position);
-        byteBuffer.put(bytes, offset, r);
+        byteBuffer.put(bytes, position, r);
         position += r;
         return r;
     }
