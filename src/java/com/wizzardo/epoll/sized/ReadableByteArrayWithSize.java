@@ -36,11 +36,11 @@ public class ReadableByteArrayWithSize extends ReadableByteArray {
 
     @Override
     public void unread(int i) {
-        if (i <= offset)
+        if (i <= position)
             super.unread(i);
         else {
-            super.unread(offset);
-            size.unread(i - offset);
+            super.unread(position);
+            size.unread(i - position);
         }
     }
 }
