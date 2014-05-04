@@ -43,7 +43,7 @@ public class FixedSizeWritableByteArray implements Writable {
         return offset;
     }
 
-    public int size() {
+    public int length() {
         return data.length;
     }
 

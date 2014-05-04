@@ -41,16 +41,16 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
                     bb = read(connection, r.remaining());
 //                    System.out.println("remaining: "+r.remaining());
                     r.write(bb);
-//                    System.out.println("read: " + bb.limit() + "\t" + r.offset() + "/" + r.size());
-                    if (r.size() > 4)
-                        connection.read(r.offset(), r.size());
+//                    System.out.println("read: " + bb.limit() + "\t" + r.offset() + "/" + r.length());
+                    if (r.length() > 4)
+                        connection.read(r.offset(), r.length());
                 }
             } catch (IOException e) {
                 close(connection);
             }
         }
         if (r.isComplete()) {
-            if (r.size() == 4) {
+            if (r.length() == 4) {
                 reading.put(connection, new FixedSizeWritableByteArray(BytesTools.toInt(r.getData())));
                 readyToRead(connection);
             } else {
@@ -98,6 +98,7 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
                         try {
                             while (!readable.isComplete() && write(connection, readable) > 0) {
                             }
+                            System.out.println("write to " + connection + " " + readable.complete() + "/" + readable.length() + "  " + (readable.complete() * 100 / readable.length())+"%");
                             if (!readable.isComplete()) {
                                 startWriting(connection);
                                 return;

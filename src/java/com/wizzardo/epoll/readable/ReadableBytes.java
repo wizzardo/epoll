@@ -12,4 +12,10 @@ public interface ReadableBytes {
     public void unread(int i);
 
     public boolean isComplete();
+
+    public long complete();
+
+    public long length();
+
+    public long remains();
 }

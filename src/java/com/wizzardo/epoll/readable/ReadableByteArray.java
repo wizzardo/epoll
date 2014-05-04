@@ -44,11 +44,17 @@ public class ReadableByteArray implements ReadableBytes {
         return length == position - offset;
     }
 
-    public int remains() {
-        return length + offset - position;
+    @Override
+    public long complete() {
+        return position - offset;
     }
 
-    public int processed() {
-        return position - offset;
+    @Override
+    public long length() {
+        return length;
+    }
+
+    public long remains() {
+        return length + offset - position;
     }
 }
