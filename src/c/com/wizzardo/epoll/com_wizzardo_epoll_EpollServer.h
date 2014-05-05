@@ -85,6 +85,10 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_write
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_getAddress
   (JNIEnv *, jclass, jobject);
 
+
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_connect
+  (JNIEnv *, jclass, jlong, jstring ,jint);
+
 #ifdef __cplusplus
 }
 #endif

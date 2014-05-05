@@ -151,7 +151,7 @@ public abstract class EpollServer<T extends Connection> extends Thread {
         stopListening(scope);
     }
 
-    private void putConnection(T connection) {
+    protected void putConnection(T connection) {
         if (connections == null || connections.length <= connection.fd) {
             T[] array = (T[]) Array.newInstance(connection.getClass(), connection.fd * 3 / 2);
             if (connections != null)
@@ -199,15 +199,17 @@ public abstract class EpollServer<T extends Connection> extends Thread {
         return bind(host, port, 100);
     }
 
-    private long listen(String port, int maxEvents, ByteBuffer events) {
-        return listen(null, port, maxEvents, events);
-    }
-
     private native long listen(String host, String port, int maxEvents, ByteBuffer events);
 
     private native boolean stopListening(long scope);
 
     private native int waitForEvents(long scope, int timeout);
+
+    private native int connect(long scope, String host, int port);
+
+    public T connect(String host, int port){
+        return createConnection(connect(scope, host, port), 0, port);
+    }
 
     public int waitForEvents(int timeout) {
         return waitForEvents(scope, timeout);

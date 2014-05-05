@@ -11,6 +11,7 @@
 #include <sys/epoll.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 
 #define MAXEVENTS 1024
@@ -351,6 +352,84 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening(JNI
     int s = close(scope->sfd);
     free(scope);
     return  s  == 0;
+}
+
+
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_connect(JNIEnv *env, jobject obj, jlong scopePointer, jstring host, jint port)
+{
+    struct Scope *scope = (struct Scope *)scopePointer;
+    struct epoll_event event = scope->event;
+    int efd = scope->efd;
+
+    const char *hhost = (*env)->GetStringUTFChars(env, host, NULL);
+    const char ip[15];
+    hostnameToIp(hhost, ip);
+
+    int tcp_socket;
+    if((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+        printf("Error : Could not create socket \n");
+        throwException(env, strerror(errno), NULL);
+        return -1;
+    }
+
+    struct sockaddr_in serv_addr;
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port);
+
+    if(inet_pton(AF_INET, ip, &serv_addr.sin_addr)<=0){
+        printf("inet_pton error occured\n");
+        throwException(env, strerror(errno), NULL);
+        return -1;
+    }
+
+    if(connect(tcp_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
+        printf("Error : Connect Failed \n");
+        throwException(env, strerror(errno), NULL);
+        return -1;
+    }
+
+    if (make_socket_non_blocking(tcp_socket) < 0){
+        throwException(env, strerror(errno), NULL);
+        return -1;
+    }
+
+    event.data.fd = tcp_socket;
+    event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+    if (epoll_ctl(efd, EPOLL_CTL_ADD, tcp_socket, &event) < 0){
+        throwException(env, strerror(errno), NULL);
+        return -1;
+    }
+
+    return tcp_socket;
+}
+
+int hostnameToIp(char *hostname, char *ip)
+{
+    struct addrinfo hints, *servinfo, *p;
+    struct sockaddr_in *h;
+    int rv;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC; // use AF_INET6 to force IPv6
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ( (rv = getaddrinfo( hostname , NULL , &hints , &servinfo)) != 0)
+    {
+        printf("getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+
+    // loop through all the results and connect to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next)
+    {
+        h = (struct sockaddr_in *) p->ai_addr;
+        strcpy(ip , inet_ntoa( h->sin_addr ) );
+    }
+
+    freeaddrinfo(servinfo); // all done with this structure
+    return 0;
 }
 
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring host, jstring port, jint maxEvents, jobject bb)
