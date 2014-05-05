@@ -23,8 +23,8 @@ public class ThreadPool {
                     while (true) {
                         try {
                             queue.take().run();
-                        } catch (Throwable t) {
-                            t.printStackTrace();
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     }
                 }
