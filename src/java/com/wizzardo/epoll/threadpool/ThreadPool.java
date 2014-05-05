@@ -12,6 +12,10 @@ public class ThreadPool {
     private final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>();
 
     public ThreadPool(int threads) {
+        this("ThreadPoolWorker", threads);
+    }
+
+    public ThreadPool(String name, int threads) {
         for (int i = 0; i < threads; i++) {
             Thread t = new Thread(new Runnable() {
                 @Override
@@ -26,7 +30,7 @@ public class ThreadPool {
                 }
             });
             t.setDaemon(true);
-            t.setName("ThreadPoolWorker-" + i);
+            t.setName(name + "-" + i);
             t.start();
         }
     }
