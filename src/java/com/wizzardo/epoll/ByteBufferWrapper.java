@@ -14,7 +14,7 @@ class ByteBufferWrapper {
 
     ByteBufferWrapper(ByteBuffer buffer) {
         this.buffer = buffer;
-        address = EpollServer.getAddress(buffer);
+        address = EpollCore.getAddress(buffer);
     }
 
     public int limit() {

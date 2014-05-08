@@ -14,10 +14,10 @@ import static com.wizzardo.epoll.Utils.readShort;
  * @author: wizzardo
  * Date: 11/5/13
  */
-public abstract class EpollServer<T extends Connection> extends Thread {
-    //  gcc -m32 -shared -fpic -o ../../../../../libepoll-server_x32.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollServer.c
-    //  gcc      -shared -fpic -o ../../../../../libepoll-server_x64.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollServer.c
-    //  javah -jni com.wizzardo.epoll.EpollServer
+public abstract class EpollCore<T extends Connection> extends Thread {
+    //  gcc -m32 -shared -fpic -o ../../../../../libepoll-core_x32.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
+    //  gcc      -shared -fpic -o ../../../../../libepoll-core_x64.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
+    //  javah -jni com.wizzardo.epoll.EpollCore
 
     private volatile boolean running = true;
     private volatile long scope;
@@ -42,7 +42,7 @@ public abstract class EpollServer<T extends Connection> extends Thread {
 
     static {
         try {
-            loadLib("libepoll-server");
+            loadLib("libepoll-core");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -52,7 +52,7 @@ public abstract class EpollServer<T extends Connection> extends Thread {
         String arch = System.getProperty("os.arch");
         name = name + (arch.contains("64") ? "_x64" : "_x32") + ".so";
         // have to use a stream
-        InputStream in = EpollServer.class.getResourceAsStream("/" + name);
+        InputStream in = EpollCore.class.getResourceAsStream("/" + name);
 
         File fileOut = null;
         try {
@@ -69,6 +69,7 @@ public abstract class EpollServer<T extends Connection> extends Thread {
             in.close();
             out.close();
             System.load(fileOut.toString());
+            fileOut.deleteOnExit();
         } catch (IOException e) {
             e.printStackTrace();
         }

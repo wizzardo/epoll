@@ -15,11 +15,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author: wizzardo
  * Date: 1/4/14
  */
-public class EpollServerTest {
+public class EpollCoreTest {
 
     @Test
     public void startStopTest() throws InterruptedException {
-        EpollServer server = new EpollServer() {
+        EpollCore server = new EpollCore() {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
@@ -64,7 +64,7 @@ public class EpollServerTest {
 
     @Test
     public void echoTest() throws InterruptedException {
-        EpollServer server = new EpollServer() {
+        EpollCore server = new EpollCore() {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
@@ -120,7 +120,7 @@ public class EpollServerTest {
 
     //    @Test
     public void httpTest() throws InterruptedException {
-        EpollServer server = new EpollServer() {
+        EpollCore server = new EpollCore() {
 
             byte[] response = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
 //            byte[] response = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
@@ -170,7 +170,7 @@ public class EpollServerTest {
 
     @Test
     public void maxEventsTest() throws InterruptedException {
-        EpollServer server = new EpollServer() {
+        EpollCore server = new EpollCore() {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
@@ -253,7 +253,7 @@ public class EpollServerTest {
 
     @Test
     public void hostBindTest() throws InterruptedException {
-        EpollServer server = new EpollServer() {
+        EpollCore server = new EpollCore() {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {

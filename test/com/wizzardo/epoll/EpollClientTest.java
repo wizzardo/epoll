@@ -12,7 +12,7 @@ import java.io.IOException;
 public class EpollClientTest {
     @Test
     public void simpleTest() {
-        EpollServer epoll = new EpollServer() {
+        EpollCore epoll = new EpollCore() {
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
                 System.out.println("createConnection: " + fd + " " + ip + " " + port);

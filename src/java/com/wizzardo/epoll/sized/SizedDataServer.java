@@ -1,7 +1,7 @@
 package com.wizzardo.epoll.sized;
 
 import com.wizzardo.epoll.Connection;
-import com.wizzardo.epoll.EpollServer;
+import com.wizzardo.epoll.EpollCore;
 import com.wizzardo.epoll.readable.ReadableBytes;
 import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.io.BytesTools;
@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author: wizzardo
  * Date: 2/27/14
  */
-public abstract class SizedDataServer<T extends SizedDataServerConnection> extends EpollServer<T> {
+public abstract class SizedDataServer<T extends SizedDataServerConnection> extends EpollCore<T> {
     private ConcurrentHashMap<Connection, Queue<ReadableBytes>> sending = new ConcurrentHashMap<Connection, Queue<ReadableBytes>>();
     private Map<Connection, FixedSizeWritableByteArray> reading = new ConcurrentHashMap<Connection, FixedSizeWritableByteArray>();
     protected ThreadPool threadPool;

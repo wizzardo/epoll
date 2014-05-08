@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <jni.h>
-#include "com_wizzardo_epoll_EpollServer.h"
+#include "com_wizzardo_epoll_EpollCore.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -76,7 +76,7 @@ static int create_and_bind(const char *host, const char *port)
 
     freeaddrinfo(result);
 
-    fprintf(stderr, "server fd: %d\n", sfd);
+    fprintf(stderr, "Core fd: %d\n", sfd);
     return sfd;
 }
 
@@ -109,7 +109,7 @@ static void intToBytes(int i, char* b){
     b[3] = (i) & 0xff;
 }
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout)
 {
     int n, i, s, j = 0;
     struct Scope *scope = (struct Scope *)scopePointer;
@@ -249,7 +249,7 @@ void throwException(JNIEnv *env, char *message, jstring file)
 }
 
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
 {
     int s;
     struct epoll_event e;
@@ -266,7 +266,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_startWriting(JNIEnv *
     }
 }
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_stopWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
 {
     int s;
     struct epoll_event e;
@@ -284,7 +284,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_stopWriting(JNIEnv *e
 }
 
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_read(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_read(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length)
 {
     jbyte *buf =(jbyte *) bb;
     if (buf == NULL)
@@ -311,7 +311,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_read(JNIEnv *env, jcl
 }
 
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_write(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_write(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length)
 {
     jbyte *buf = (jbyte *) bb;
     if (buf == NULL)
@@ -339,13 +339,13 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_write(JNIEnv *env, jc
 }
 
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollServer_close(JNIEnv *env, jobject obj, jint fd)
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_close(JNIEnv *env, jobject obj, jint fd)
 {
 //    shutdown(fd, SHUT_RDWR);
     close(fd);
 }
 
-JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening(JNIEnv *env, jobject obj, jlong scopePointer)
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopListening(JNIEnv *env, jobject obj, jlong scopePointer)
 {
     struct Scope *scope = (struct Scope *)scopePointer;
     free(scope->events);
@@ -355,7 +355,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollServer_stopListening(JNI
 }
 
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollServer_connect(JNIEnv *env, jobject obj, jlong scopePointer, jstring host, jint port)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jobject obj, jlong scopePointer, jstring host, jint port)
 {
     struct Scope *scope = (struct Scope *)scopePointer;
     struct epoll_event event = scope->event;
@@ -432,7 +432,7 @@ int hostnameToIp(char *hostname, char *ip)
     return 0;
 }
 
-JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, jobject obj, jstring host, jstring port, jint maxEvents, jobject bb)
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, jobject obj, jstring host, jstring port, jint maxEvents, jobject bb)
 {
     const char *pport = (*env)->GetStringUTFChars(env, port, NULL);
     const char *hhost = host == NULL? NULL:((*env)->GetStringUTFChars(env, host, NULL));
@@ -484,6 +484,6 @@ JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_listen(JNIEnv *env, 
     return lp;
 }
 
-JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollServer_getAddress(JNIEnv *env, jclass cl, jobject bb){
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_getAddress(JNIEnv *env, jclass cl, jobject bb){
     return (long) (*env)->GetDirectBufferAddress(env, bb);
 }
