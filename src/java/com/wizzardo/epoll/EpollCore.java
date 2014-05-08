@@ -155,7 +155,9 @@ public abstract class EpollCore<T extends Connection> extends Thread {
     }
 
     public T connect(String host, int port) {
-        return createConnection(connect(scope, host, port), 0, port);
+        T connection = createConnection(connect(scope, host, port), 0, port);
+        putConnection(connection);
+        return connection;
     }
 
     protected boolean bind(String host, int port) {
