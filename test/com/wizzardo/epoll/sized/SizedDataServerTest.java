@@ -17,22 +17,22 @@ public class SizedDataServerTest {
 
     @Test
     public void test() throws InterruptedException, IOException {
-        SizedDataServer server = new SizedDataServer(2) {
+        int port = 8080;
+        SizedDataServer server = new SizedDataServer(2, port) {
             @Override
             public void handleData(SizedDataServerConnection connection, byte[] data) {
                 System.out.println(new String(data));
-                send(connection, new ReadableByteArrayWithSize(new String(data).toUpperCase().getBytes()));
+                connection.write(new ReadableByteArrayWithSize(new String(data).toUpperCase().getBytes()));
             }
 
             @Override
             protected SizedDataServerConnection createConnection(int fd, int ip, int port) {
-                return new SizedDataServerConnection(fd, ip, port);
+                return new SizedDataServerConnection(this, fd, ip, port);
             }
         };
-        server.bind(8080);
         server.start();
 
-        Socket socket = new Socket("localhost", 8080);
+        Socket socket = new Socket("localhost", port);
         String string = "some test data";
         byte[] data = string.getBytes();
 

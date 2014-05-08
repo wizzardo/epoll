@@ -15,36 +15,19 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author: wizzardo
  * Date: 1/4/14
  */
-public class EpollCoreTest {
+public class EpollServerTest {
 
     @Test
     public void startStopTest() throws InterruptedException {
-        EpollCore server = new EpollCore() {
+        int port = 9091;
+        EpollServer server = new EpollServer(port) {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(fd, ip, port);
-            }
-
-            @Override
-            public void readyToRead(Connection connection) {
-            }
-
-            @Override
-            public void readyToWrite(Connection connection) {
-            }
-
-            @Override
-            public void onOpenConnection(Connection connection) {
-            }
-
-            @Override
-            public void onCloseConnection(Connection connection) {
+                return new Connection(this, fd, ip, port);
             }
         };
-        int port = 9091;
 
-        server.bind(port);
         server.start();
 
         Thread.sleep(500);
@@ -64,15 +47,16 @@ public class EpollCoreTest {
 
     @Test
     public void echoTest() throws InterruptedException {
-        EpollCore server = new EpollCore() {
+        int port = 9090;
+        EpollServer server = new EpollServer(port) {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(fd, ip, port);
+                return new Connection(this, fd, ip, port);
             }
 
             @Override
-            public void readyToRead(Connection connection) {
+            public void onRead(Connection connection) {
                 try {
                     byte[] b = new byte[1024];
                     int r = read(connection, b, 0, b.length);
@@ -84,22 +68,8 @@ public class EpollCoreTest {
                     e.printStackTrace();
                 }
             }
-
-            @Override
-            public void readyToWrite(Connection connection) {
-            }
-
-            @Override
-            public void onOpenConnection(Connection connection) {
-            }
-
-            @Override
-            public void onCloseConnection(Connection connection) {
-            }
         };
-        int port = 9090;
 
-        server.bind(port);
         server.start();
 
         try {
@@ -120,18 +90,19 @@ public class EpollCoreTest {
 
     //    @Test
     public void httpTest() throws InterruptedException {
-        EpollCore server = new EpollCore() {
+        int port = 9090;
+        EpollServer server = new EpollServer(port) {
 
             byte[] response = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
 //            byte[] response = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(fd, ip, port);
+                return new Connection(this, fd, ip, port);
             }
 
             @Override
-            public void readyToRead(Connection connection) {
+            public void onRead(Connection connection) {
                 try {
                     byte[] b = new byte[1024];
                     int r = read(connection, b, 0, b.length);
@@ -145,22 +116,8 @@ public class EpollCoreTest {
                     e.printStackTrace();
                 }
             }
-
-            @Override
-            public void readyToWrite(Connection connection) {
-            }
-
-            @Override
-            public void onOpenConnection(Connection connection) {
-            }
-
-            @Override
-            public void onCloseConnection(Connection connection) {
-            }
         };
-        int port = 9090;
 
-        server.bind(port);
         server.start();
 
         Thread.sleep(5 * 60 * 1000);
@@ -170,15 +127,16 @@ public class EpollCoreTest {
 
     @Test
     public void maxEventsTest() throws InterruptedException {
-        EpollCore server = new EpollCore() {
+        final int port = 9092;
+        EpollServer server = new EpollServer(null, port, 2) {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(fd, ip, port);
+                return new Connection(this, fd, ip, port);
             }
 
             @Override
-            public void readyToRead(Connection connection) {
+            public void onRead(Connection connection) {
                 try {
                     byte[] b = new byte[1024];
                     int r = read(connection, b, 0, b.length);
@@ -190,23 +148,8 @@ public class EpollCoreTest {
                     e.printStackTrace();
                 }
             }
-
-            @Override
-            public void readyToWrite(Connection connection) {
-            }
-
-            @Override
-            public void onOpenConnection(Connection connection) {
-//                System.out.println(connection.fd);
-            }
-
-            @Override
-            public void onCloseConnection(Connection connection) {
-            }
         };
-        final int port = 9092;
 
-        server.bind(port, 2);
         server.start();
 
         final AtomicLong total = new AtomicLong(0);
@@ -253,15 +196,17 @@ public class EpollCoreTest {
 
     @Test
     public void hostBindTest() throws InterruptedException {
-        EpollCore server = new EpollCore() {
+        int port = 9090;
+        String host = "192.168.0.131";
+        EpollServer server = new EpollServer(host, port) {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(fd, ip, port);
+                return new Connection(this, fd, ip, port);
             }
 
             @Override
-            public void readyToRead(Connection connection) {
+            public void onRead(Connection connection) {
                 try {
                     byte[] b = new byte[1024];
                     int r = read(connection, b, 0, b.length);
@@ -273,23 +218,8 @@ public class EpollCoreTest {
                     e.printStackTrace();
                 }
             }
-
-            @Override
-            public void readyToWrite(Connection connection) {
-            }
-
-            @Override
-            public void onOpenConnection(Connection connection) {
-            }
-
-            @Override
-            public void onCloseConnection(Connection connection) {
-            }
         };
-        int port = 9090;
-        String host = "172.19.59.197";
 
-        server.bind(host, port);
         server.start();
 
         String message = null;

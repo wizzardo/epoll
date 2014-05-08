@@ -18,8 +18,12 @@ extern "C" {
  * Method:    listen
  * Signature: (Ljava/lang/String;ILjava/nio/ByteBuffer;)J
  */
-JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_listen
-  (JNIEnv *, jobject, jstring, jstring, jint, jobject);
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen
+  (JNIEnv *, jobject, jlong, jstring, jstring);
+
+
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_init
+  (JNIEnv *, jobject, jint, jobject);
 
 /*
  * Class:     com_wizzardo_epoll_EpollCore

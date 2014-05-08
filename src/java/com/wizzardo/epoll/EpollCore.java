@@ -37,7 +37,6 @@ public abstract class EpollCore<T extends Connection> extends Thread {
             return bb;
         }
     };
-
     private ByteBuffer events;
 
     static {
@@ -48,31 +47,13 @@ public abstract class EpollCore<T extends Connection> extends Thread {
         }
     }
 
-    private static void loadLib(String name) {
-        String arch = System.getProperty("os.arch");
-        name = name + (arch.contains("64") ? "_x64" : "_x32") + ".so";
-        // have to use a stream
-        InputStream in = EpollCore.class.getResourceAsStream("/" + name);
+    public EpollCore() {
+        this(100);
+    }
 
-        File fileOut = null;
-        try {
-            if (in == null) {
-                in = new FileInputStream(name);
-            }
-            fileOut = File.createTempFile(name, "lib");
-            OutputStream out = new FileOutputStream(fileOut);
-            int r;
-            byte[] b = new byte[1024];
-            while ((r = in.read(b)) != -1) {
-                out.write(b, 0, r);
-            }
-            in.close();
-            out.close();
-            System.load(fileOut.toString());
-            fileOut.deleteOnExit();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    public EpollCore(int maxEvents) {
+        events = ByteBuffer.allocateDirect((maxEvents + 500) * 11);
+        scope = init(maxEvents, events);
     }
 
     @Override
@@ -97,23 +78,24 @@ public abstract class EpollCore<T extends Connection> extends Thread {
                         case 0: {
                             connection = createConnection(fd, readInt(events, i), readShort(events, i + 4));
                             putConnection(connection);
-                            onOpenConnection(connection);
+                            onConnect(connection);
                             i += 6;
                             break;
                         }
                         case 1: {
                             connection = getConnection(fd);
-                            readyToRead(connection);
+                            onRead(connection);
                             break;
                         }
                         case 2: {
                             connection = getConnection(fd);
-                            readyToWrite(connection);
+                            onWrite(connection);
                             break;
                         }
                         case 3: {
                             connection = getConnection(fd);
-                            onCloseConnection(connection);
+                            connection.setIsAlive(false);
+                            onDisconnect(connection);
                             deleteConnection(fd);
                             break;
                         }
@@ -128,7 +110,7 @@ public abstract class EpollCore<T extends Connection> extends Thread {
                     connection = deleteConnection(timeouts.removeFirst().fd);
                     if (connection != null) {
                         close(connection);
-                        onCloseConnection(connection);
+                        onDisconnect(connection);
                     }
                 }
 
@@ -172,51 +154,20 @@ public abstract class EpollCore<T extends Connection> extends Thread {
         return connection;
     }
 
-    abstract protected T createConnection(int fd, int ip, int port);
-
-    public abstract void readyToRead(T connection);
-
-    public abstract void readyToWrite(T connection);
-
-    public abstract void onOpenConnection(T connection);
-
-    public abstract void onCloseConnection(T connection);
-
-    public boolean bind(String host, int port, int maxEvents) {
-        events = ByteBuffer.allocateDirect((maxEvents + 500) * 11);
-        scope = listen(host, String.valueOf(port), maxEvents, events);
-        return true;
-    }
-
-    public boolean bind(int port, int maxEvents) {
-        return bind(null, port, maxEvents);
-    }
-
-    public boolean bind(int port) {
-        return bind(port, 100);
-    }
-
-    public boolean bind(String host, int port) {
-        return bind(host, port, 100);
-    }
-
-    private native long listen(String host, String port, int maxEvents, ByteBuffer events);
-
-    private native boolean stopListening(long scope);
-
-    private native int waitForEvents(long scope, int timeout);
-
-    private native int connect(long scope, String host, int port);
-
-    public T connect(String host, int port){
+    public T connect(String host, int port) {
         return createConnection(connect(scope, host, port), 0, port);
     }
 
-    public int waitForEvents(int timeout) {
+    protected boolean bind(String host, int port) {
+        scope = listen(scope, host, String.valueOf(port));
+        return true;
+    }
+
+    protected int waitForEvents(int timeout) {
         return waitForEvents(scope, timeout);
     }
 
-    public int waitForEvents() {
+    protected int waitForEvents() {
         return waitForEvents(scope, -1);
     }
 
@@ -225,21 +176,15 @@ public abstract class EpollCore<T extends Connection> extends Thread {
             startWriting(scope, connection.fd);
     }
 
-    private native void startWriting(long scope, int fd);
-
     public void stopWriting(T connection) {
         if (connection.isAlive())
             stopWriting(scope, connection.fd);
     }
 
-    private native void stopWriting(long scope, int fd);
-
     public void close(T connection) {
         connection.setIsAlive(false);
         close(connection.fd);
     }
-
-    private native void close(int fd);
 
     public int read(T connection, byte[] b, int offset, int length) throws IOException {
         ByteBuffer bb = read(connection, length);
@@ -275,9 +220,67 @@ public abstract class EpollCore<T extends Connection> extends Thread {
         return written;
     }
 
+    public void onRead(T connection) {
+    }
+
+    public void onWrite(T connection) {
+        connection.write();
+    }
+
+    public void onConnect(T connection) {
+    }
+
+    public void onDisconnect(T connection) {
+    }
+
+    protected abstract T createConnection(int fd, int ip, int port);
+
+    private native long init(int maxEvents, ByteBuffer events);
+
+    private native long listen(long scope, String host, String port);
+
+    private native boolean stopListening(long scope);
+
+    private native int waitForEvents(long scope, int timeout);
+
+    private native int connect(long scope, String host, int port);
+
+    private native void close(int fd);
+
+    private native void stopWriting(long scope, int fd);
+
+    private native void startWriting(long scope, int fd);
+
     private native int read(int fd, long bbPointer, int off, int len) throws IOException;
 
     private native int write(int fd, long bbPointer, int off, int len) throws IOException;
 
     native static long getAddress(ByteBuffer buffer);
+
+    private static void loadLib(String name) {
+        String arch = System.getProperty("os.arch");
+        name = name + (arch.contains("64") ? "_x64" : "_x32") + ".so";
+        // have to use a stream
+        InputStream in = EpollCore.class.getResourceAsStream("/" + name);
+
+        File fileOut = null;
+        try {
+            if (in == null) {
+                in = new FileInputStream(name);
+            }
+            fileOut = File.createTempFile(name, "lib");
+            OutputStream out = new FileOutputStream(fileOut);
+            int r;
+            byte[] b = new byte[1024];
+            while ((r = in.read(b)) != -1) {
+                out.write(b, 0, r);
+            }
+            in.close();
+            out.close();
+            System.load(fileOut.toString());
+            fileOut.deleteOnExit();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

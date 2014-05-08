@@ -76,7 +76,7 @@ static int create_and_bind(const char *host, const char *port)
 
     freeaddrinfo(result);
 
-    fprintf(stderr, "Core fd: %d\n", sfd);
+    fprintf(stderr, "Server fd: %d\n", sfd);
     return sfd;
 }
 
@@ -432,8 +432,33 @@ int hostnameToIp(char *hostname, char *ip)
     return 0;
 }
 
-JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, jobject obj, jstring host, jstring port, jint maxEvents, jobject bb)
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_init(JNIEnv *env, jobject obj, jint maxEvents, jobject bb){
+    int efd = epoll_create1(0);
+    if (efd == -1)
+    {
+        perror("epoll_create");
+        abort();
+    }
+
+    struct Scope *scope;
+    scope = (struct Scope *)malloc(sizeof(struct Scope));
+
+
+    struct epoll_event event;
+    /* Buffer where events are returned */
+    (*scope).events = calloc(maxEvents, sizeof event);
+    (*scope).event = event;
+    (*scope).efd = efd;
+    (*scope).maxEvents = maxEvents;
+    (*scope).jEvents = (*env)->GetDirectBufferAddress(env, bb);
+
+    long lp = (long)scope;
+    return lp;
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, jobject obj, jlong scopePointer, jstring host, jstring port)
 {
+    struct Scope *scope = (struct Scope *)scopePointer;
     const char *pport = (*env)->GetStringUTFChars(env, port, NULL);
     const char *hhost = host == NULL? NULL:((*env)->GetStringUTFChars(env, host, NULL));
 
@@ -452,36 +477,17 @@ JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, jo
         abort();
     }
 
-    int efd = epoll_create1(0);
-    if (efd == -1)
-    {
-        perror("epoll_create");
-        abort();
-    }
-
-    struct epoll_event event;
+    int efd = scope->efd;
+    struct epoll_event event = scope->event;
     event.data.fd = sfd;
     event.events = EPOLLIN | EPOLLET;
     s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
-    if (s == -1)
-    {
+    if (s == -1){
         perror("epoll_ctl");
         abort();
     }
 
-    struct Scope *scope;
-    scope = (struct Scope *)malloc(sizeof(struct Scope));
-
-    /* Buffer where events are returned */
-    (*scope).events = calloc(maxEvents, sizeof event);
-    (*scope).event = event;
     (*scope).sfd = sfd;
-    (*scope).efd = efd;
-    (*scope).maxEvents = maxEvents;
-    (*scope).jEvents = (*env)->GetDirectBufferAddress(env, bb);
-
-    long lp = (long)scope;
-    return lp;
 }
 
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_getAddress(JNIEnv *env, jclass cl, jobject bb){
