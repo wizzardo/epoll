@@ -54,4 +54,7 @@ public class ThreadPool {
         threadsCount = newThreadsCount;
     }
 
+    public int getThreadsCount() {
+        return threadsCount;
+    }
 }
