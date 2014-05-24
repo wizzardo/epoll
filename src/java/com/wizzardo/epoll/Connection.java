@@ -1,8 +1,10 @@
 package com.wizzardo.epoll;
 
+import com.wizzardo.epoll.readable.ReadableByteArray;
 import com.wizzardo.epoll.readable.ReadableBytes;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -30,6 +32,10 @@ public class Connection<T extends EpollCore> {
         if (ipString == null)
             ipString = getIp(ip);
         return ipString;
+    }
+
+    void setIpString(String ip) {
+        ipString = ip;
     }
 
     private String getIp(int ip) {
@@ -61,6 +67,22 @@ public class Connection<T extends EpollCore> {
         alive = isAlive;
     }
 
+    public void write(String s) {
+        try {
+            write(s.getBytes("utf-8"));
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void write(byte[] bytes) {
+        write(bytes, 0, bytes.length);
+    }
+
+    public void write(byte[] bytes, int offset, int length) {
+        write(new ReadableByteArray(bytes, offset, length));
+    }
+
     public void write(ReadableBytes readable) {
         if (sending == null)
             synchronized (this) {
@@ -89,7 +111,7 @@ public class Connection<T extends EpollCore> {
 
                     sending.poll();
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
                 epoll.close(this);
             }
@@ -127,6 +149,6 @@ public class Connection<T extends EpollCore> {
     }
 
     public int read(byte[] bytes, int offset, int length) throws IOException {
-        return epoll.read(this,bytes,offset,length);
+        return epoll.read(this, bytes, offset, length);
     }
 }

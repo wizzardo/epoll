@@ -4,8 +4,11 @@ import com.wizzardo.epoll.readable.ReadableBytes;
 
 import java.io.*;
 import java.lang.reflect.Array;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
+import java.util.regex.Pattern;
 
 import static com.wizzardo.epoll.Utils.readInt;
 import static com.wizzardo.epoll.Utils.readShort;
@@ -14,11 +17,12 @@ import static com.wizzardo.epoll.Utils.readShort;
  * @author: wizzardo
  * Date: 11/5/13
  */
-public abstract class EpollCore<T extends Connection> extends Thread {
+public class EpollCore<T extends Connection> extends Thread {
     //  gcc -m32 -shared -fpic -o ../../../../../libepoll-core_x32.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
     //  gcc      -shared -fpic -o ../../../../../libepoll-core_x64.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
     //  javah -jni com.wizzardo.epoll.EpollCore
 
+    private static final Pattern IP_PATTERN = Pattern.compile("[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}");
     private volatile boolean running = true;
     private volatile long scope;
     private long ttl = 30000;
@@ -84,20 +88,30 @@ public abstract class EpollCore<T extends Connection> extends Thread {
                         }
                         case 1: {
                             connection = getConnection(fd);
-                            onRead(connection);
+                            if (connection == null) {
+                                close(fd);
+                                continue;
+                            } else
+                                onRead(connection);
                             break;
                         }
                         case 2: {
                             connection = getConnection(fd);
-                            onWrite(connection);
+                            if (connection == null) {
+                                close(fd);
+                                continue;
+                            } else
+                                onWrite(connection);
                             break;
                         }
                         case 3: {
                             connection = getConnection(fd);
+                            if (connection == null)
+                                continue;
                             connection.setIsAlive(false);
                             onDisconnect(connection);
                             deleteConnection(fd);
-                            break;
+                            continue;
                         }
                     }
                     connection.setLastEvent(now);
@@ -108,10 +122,8 @@ public abstract class EpollCore<T extends Connection> extends Thread {
                 T connection;
                 while ((connection = timeouts.peekFirst()) != null && connection.getLastEvent() < now) {
                     connection = deleteConnection(timeouts.removeFirst().fd);
-                    if (connection != null) {
+                    if (connection != null)
                         close(connection);
-                        onDisconnect(connection);
-                    }
                 }
 
             } catch (Exception e) {
@@ -154,9 +166,16 @@ public abstract class EpollCore<T extends Connection> extends Thread {
         return connection;
     }
 
-    public T connect(String host, int port) {
+    public T connect(String host, int port) throws UnknownHostException {
+        boolean resolve = !IP_PATTERN.matcher(host).matches();
+        if (resolve) {
+            InetAddress address = InetAddress.getByName(host);
+            host = address.getHostAddress();
+        }
         T connection = createConnection(connect(scope, host, port), 0, port);
+        connection.setIpString(host);
         putConnection(connection);
+        onConnect(connection);
         return connection;
     }
 
@@ -186,6 +205,7 @@ public abstract class EpollCore<T extends Connection> extends Thread {
     public void close(T connection) {
         connection.setIsAlive(false);
         close(connection.fd);
+        onDisconnect(connection);
     }
 
     public int read(T connection, byte[] b, int offset, int length) throws IOException {
@@ -217,7 +237,7 @@ public abstract class EpollCore<T extends Connection> extends Thread {
         int r = readable.read(bb.buffer);
         int written = connection.isAlive() ? write(connection.fd, bb.address, 0, r) : -1;
         if (written != r)
-            readable.unread(r - written);
+            readable.unread(r - (written < 0 ? 0 : written));
 
         return written;
     }
@@ -235,7 +255,10 @@ public abstract class EpollCore<T extends Connection> extends Thread {
     public void onDisconnect(T connection) {
     }
 
-    protected abstract T createConnection(int fd, int ip, int port);
+    //    protected abstract T createConnection(int fd, int ip, int port);
+    protected T createConnection(int fd, int ip, int port) {
+        return (T) new Connection(this, fd, ip, port);
+    }
 
     private native long init(int maxEvents, ByteBuffer events);
 

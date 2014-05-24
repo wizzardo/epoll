@@ -362,12 +362,17 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
     int efd = scope->efd;
 
     const char *hhost = (*env)->GetStringUTFChars(env, host, NULL);
-    const char ip[15];
-    hostnameToIp(hhost, ip);
 
     int tcp_socket;
     if((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         printf("Error : Could not create socket \n");
+        throwException(env, strerror(errno), NULL);
+        return -1;
+    }
+
+    int on = 1;
+    if(setsockopt(tcp_socket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0){
+        printf("setsockopt error occured\n");
         throwException(env, strerror(errno), NULL);
         return -1;
     }
@@ -378,7 +383,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
 
-    if(inet_pton(AF_INET, ip, &serv_addr.sin_addr)<=0){
+    if(inet_pton(AF_INET, hhost, &serv_addr.sin_addr)<=0){
         printf("inet_pton error occured\n");
         throwException(env, strerror(errno), NULL);
         return -1;
@@ -403,33 +408,6 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
     }
 
     return tcp_socket;
-}
-
-int hostnameToIp(char *hostname, char *ip)
-{
-    struct addrinfo hints, *servinfo, *p;
-    struct sockaddr_in *h;
-    int rv;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC; // use AF_INET6 to force IPv6
-    hints.ai_socktype = SOCK_STREAM;
-
-    if ( (rv = getaddrinfo( hostname , NULL , &hints , &servinfo)) != 0)
-    {
-        printf("getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
-    }
-
-    // loop through all the results and connect to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next)
-    {
-        h = (struct sockaddr_in *) p->ai_addr;
-        strcpy(ip , inet_ntoa( h->sin_addr ) );
-    }
-
-    freeaddrinfo(servinfo); // all done with this structure
-    return 0;
 }
 
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_init(JNIEnv *env, jobject obj, jint maxEvents, jobject bb){
