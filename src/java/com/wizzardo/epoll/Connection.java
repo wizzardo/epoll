@@ -148,6 +148,10 @@ public class Connection<T extends EpollCore> {
         return fd + " " + getIp() + ":" + port;
     }
 
+    public int read(byte[] bytes) throws IOException {
+        return read(bytes, 0, bytes.length);
+    }
+
     public int read(byte[] bytes, int offset, int length) throws IOException {
         return epoll.read(this, bytes, offset, length);
     }
