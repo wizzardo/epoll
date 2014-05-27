@@ -7,7 +7,6 @@ import java.lang.reflect.Array;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.LinkedList;
 import java.util.regex.Pattern;
 
 import static com.wizzardo.epoll.Utils.readInt;
@@ -27,7 +26,8 @@ public class EpollCore<T extends Connection> extends Thread {
     private volatile long scope;
     private long ttl = 30000;
     private T[] connections;
-    private LinkedList<T> timeouts = new LinkedList<T>();
+    private EventChain<T> timeouts = new EventChain<T>();
+
     private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
         @Override
         protected ByteBufferWrapper initialValue() {
@@ -76,6 +76,7 @@ public class EpollCore<T extends Connection> extends Thread {
                     int event = events[i];
                     i++;
                     final int fd = readInt(events, i);
+//                    System.out.println("event on fd " + fd + ": " + event);
                     i += 4;
                     T connection = null;
                     switch (event) {
@@ -106,24 +107,27 @@ public class EpollCore<T extends Connection> extends Thread {
                         }
                         case 3: {
                             connection = getConnection(fd);
+                            deleteConnection(fd);
                             if (connection == null)
                                 continue;
                             connection.setIsAlive(false);
                             onDisconnect(connection);
-                            deleteConnection(fd);
                             continue;
                         }
                     }
                     connection.setLastEvent(now);
-                    timeouts.add(connection);
+                    timeouts.add(connection, now);
                 }
 
                 now -= ttl;
                 T connection;
-                while ((connection = timeouts.peekFirst()) != null && connection.getLastEvent() < now) {
-                    connection = deleteConnection(timeouts.removeFirst().fd);
-                    if (connection != null)
-                        close(connection);
+                while (timeouts.isNextBefore(now)) {
+                    connection = timeouts.poll();
+                    if (connection.getLastEvent() < now) {
+                        connection = deleteConnection(connection.fd);
+                        if (connection != null)
+                            close(connection);
+                    }
                 }
 
             } catch (Exception e) {
