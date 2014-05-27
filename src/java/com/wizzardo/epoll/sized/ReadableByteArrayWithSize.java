@@ -39,8 +39,9 @@ public class ReadableByteArrayWithSize extends ReadableByteArray {
         if (i <= position)
             super.unread(i);
         else {
+            i -= position;
             super.unread(position);
-            size.unread(i - position);
+            size.unread(i);
         }
     }
 }
