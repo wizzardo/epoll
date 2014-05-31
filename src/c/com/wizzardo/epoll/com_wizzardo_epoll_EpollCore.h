@@ -22,6 +22,10 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen
   (JNIEnv *, jobject, jlong, jstring, jstring);
 
 
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections
+  (JNIEnv *, jobject, jlong);
+
+
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_init
   (JNIEnv *, jobject, jint, jobject);
 

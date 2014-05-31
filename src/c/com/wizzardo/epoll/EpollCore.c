@@ -109,8 +109,71 @@ static void intToBytes(int i, char* b){
     b[3] = (i) & 0xff;
 }
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout)
-{
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEnv *env, jobject obj, jlong scopePointer) {
+    int s, j = 0;
+    struct Scope *scope = (struct Scope *)scopePointer;
+    struct epoll_event event = scope->event;
+    int sfd = scope->sfd;
+    int efd = scope->efd;
+    jbyte *jEvents = scope->jEvents;
+
+    struct sockaddr addr;
+    socklen_t in_len;
+    int infd;
+    in_len = sizeof addr;
+
+    while (1) {
+        infd = accept(sfd, &addr, &in_len);
+        if (infd == -1) {
+            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                /* We have processed all incoming
+                   connections. */
+                break;
+            } else {
+                perror("accept");
+                break;
+            }
+        }
+//                fprintf(stderr, "new connection from  %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", addr.sa_data[0], addr.sa_data[1], addr.sa_data[2], addr.sa_data[3], addr.sa_data[4], addr.sa_data[5], addr.sa_data[6], addr.sa_data[7], addr.sa_data[8], addr.sa_data[9], addr.sa_data[10], addr.sa_data[11], addr.sa_data[12], addr.sa_data[13]);
+
+//                int port = (addr.sa_data[0] < 0 ? 256 + addr.sa_data[0] : addr.sa_data[0]) << 8;
+//                port += (addr.sa_data[1] < 0 ? 256 + addr.sa_data[1] : addr.sa_data[1]);
+//
+//                int ip = (addr.sa_data[2] < 0 ? 256 + addr.sa_data[2] : addr.sa_data[2]) << 24;
+//                ip += (addr.sa_data[3] < 0 ? 256 + addr.sa_data[3] : addr.sa_data[3]) << 16;
+//                ip += (addr.sa_data[4] < 0 ? 256 + addr.sa_data[4] : addr.sa_data[4]) << 8;
+//                ip += (addr.sa_data[5] < 0 ? 256 + addr.sa_data[5] : addr.sa_data[5]);
+//                fprintf(stderr, "new connection from  %d %d %d \n",infd, ip, port);
+
+        s = make_socket_non_blocking(infd);
+        if (s == -1)
+            abort();
+
+        event.data.fd = infd;
+        event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+        s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event);
+        if (s == -1) {
+            perror("epoll_ctl");
+            abort();
+        }
+
+        intToBytes(infd, &jEvents[j]);
+        j += 4;
+
+        jEvents[j] = addr.sa_data[2];
+        jEvents[j+1] = addr.sa_data[3];
+        jEvents[j+2] = addr.sa_data[4];
+        jEvents[j+3] = addr.sa_data[5];
+        j += 4;
+
+        jEvents[j] = addr.sa_data[0];
+        jEvents[j+1] = addr.sa_data[1];
+        j += 2;
+    }
+    return j;
+}
+
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout) {
     int n, i, s, j = 0;
     struct Scope *scope = (struct Scope *)scopePointer;
     struct epoll_event *events = scope->events;
@@ -125,10 +188,9 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
         n = epoll_wait(efd, events, scope->maxEvents, -1);
 
 //    fprintf(stderr, "get %d events\n", n);
-    for (i = 0; i < n; i++)
-    {
-        if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (events[i].events & EPOLLRDHUP) || (!(events[i].events & EPOLLIN) && !(events[i].events & EPOLLOUT)))
-        {
+    for (i = 0; i < n; i++) {
+//            fprintf(stderr, "fd: %d, event: %d\n", events[i].data.fd, events[i].events);
+        if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (events[i].events & EPOLLRDHUP) || (!(events[i].events & EPOLLIN) && !(events[i].events & EPOLLOUT))) {
             /* An error has occured on this fd, or the socket is not
                ready for reading (why were we notified then?) */
 //            fprintf(stderr, "connection closed for fd %d, event: %d\n", events[i].data.fd, events[i].events);
@@ -137,10 +199,10 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
 //            socklen_t errlen = sizeof(error);
 //            if (getsockopt(events[i].data.fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errlen) == 0)
 //            {
-//                printf("error = %s\n", strerror(error));
+//                fprintf(stderr, "error = %s\n", strerror(error));
 //            }
 
-            close(events[i].data.fd);
+//            close(events[i].data.fd);
 
             jEvents[j] = 3;  // close connection
             j ++;
@@ -148,78 +210,10 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
             j += 4;
 
             continue;
-        }
-
-        else if (sfd == events[i].data.fd)
-        {
-            /* We have a notification on the listening socket, which
-               means one or more incoming connections. */
-            while (1)
-            {
-                struct sockaddr addr;
-                socklen_t in_len;
-                int infd;
-
-                in_len = sizeof addr;
-                infd = accept(sfd, &addr, &in_len);
-                if (infd == -1)
-                {
-                    if ((errno == EAGAIN) || (errno == EWOULDBLOCK))
-                    {
-                        /* We have processed all incoming
-                           connections. */
-                        break;
-                    }
-                    else
-                    {
-                        perror("accept");
-                        break;
-                    }
-                }
-//                fprintf(stderr, "new connection from  %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", addr.sa_data[0], addr.sa_data[1], addr.sa_data[2], addr.sa_data[3], addr.sa_data[4], addr.sa_data[5], addr.sa_data[6], addr.sa_data[7], addr.sa_data[8], addr.sa_data[9], addr.sa_data[10], addr.sa_data[11], addr.sa_data[12], addr.sa_data[13]);
-
-//                int port = (addr.sa_data[0] < 0 ? 256 + addr.sa_data[0] : addr.sa_data[0]) << 8;
-//                port += (addr.sa_data[1] < 0 ? 256 + addr.sa_data[1] : addr.sa_data[1]);
-//
-//                int ip = (addr.sa_data[2] < 0 ? 256 + addr.sa_data[2] : addr.sa_data[2]) << 24;
-//                ip += (addr.sa_data[3] < 0 ? 256 + addr.sa_data[3] : addr.sa_data[3]) << 16;
-//                ip += (addr.sa_data[4] < 0 ? 256 + addr.sa_data[4] : addr.sa_data[4]) << 8;
-//                ip += (addr.sa_data[5] < 0 ? 256 + addr.sa_data[5] : addr.sa_data[5]);
-//                fprintf(stderr, "new connection from  %d %d %d \n",infd, ip, port);
-
-                s = make_socket_non_blocking(infd);
-                if (s == -1)
-                    abort();
-
-                event.data.fd = infd;
-                event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-                s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event);
-                if (s == -1)
-                {
-                    perror("epoll_ctl");
-                    abort();
-                }
-
-
-                jEvents[j] = 0; // 0 - new connection
-                j ++;
-                intToBytes(infd, &jEvents[j]);
-                j += 4;
-
-                jEvents[j] = addr.sa_data[2];
-                jEvents[j+1] = addr.sa_data[3];
-                jEvents[j+2] = addr.sa_data[4];
-                jEvents[j+3] = addr.sa_data[5];
-                j += 4;
-
-                jEvents[j] = addr.sa_data[0];
-                jEvents[j+1] = addr.sa_data[1];
-                j += 2;
-            }
-            continue;
-        }
-        else
-        {
+        } else if (sfd == events[i].data.fd) {
+            jEvents[j] = 0; // 0 - new connection
+            j +=5;
+        } else {
 //                fprintf(stderr, "ready to ");
 //                if(events[i].events & EPOLLOUT)
 //                    fprintf(stderr, "write");

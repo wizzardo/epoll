@@ -7,6 +7,9 @@ import java.lang.reflect.Array;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import static com.wizzardo.epoll.Utils.readInt;
@@ -26,7 +29,7 @@ public class EpollCore<T extends Connection> extends Thread {
     private volatile long scope;
     private long ttl = 30000;
     private T[] connections;
-    private EventChain<T> timeouts = new EventChain<T>();
+    private LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
 
     private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
         @Override
@@ -60,32 +63,34 @@ public class EpollCore<T extends Connection> extends Thread {
         scope = init(maxEvents, events);
     }
 
+//    protected AtomicInteger eventCounter = new AtomicInteger(0);
+
     @Override
     public void run() {
         byte[] events = new byte[this.events.capacity()];
+        byte[] newConnections = new byte[this.events.capacity()];
+
         while (running) {
             try {
                 this.events.position(0);
-                long now = System.currentTimeMillis();
+                Long now = System.nanoTime() * 1000;
                 int r = waitForEvents(500);
 //                System.out.println("events length: "+r);
                 this.events.limit(r);
                 this.events.get(events, 0, r);
                 int i = 0;
+//                eventCounter.addAndGet(r / 5);
                 while (i < r) {
                     int event = events[i];
                     i++;
-                    final int fd = readInt(events, i);
+                    int fd = readInt(events, i);
 //                    System.out.println("event on fd " + fd + ": " + event);
                     i += 4;
                     T connection = null;
                     switch (event) {
                         case 0: {
-                            connection = createConnection(fd, readInt(events, i), readShort(events, i + 4));
-                            putConnection(connection);
-                            onConnect(connection);
-                            i += 6;
-                            break;
+                            now = acceptConnections(newConnections, now);
+                            continue;
                         }
                         case 1: {
                             connection = getConnection(fd);
@@ -111,25 +116,18 @@ public class EpollCore<T extends Connection> extends Thread {
                             if (connection == null)
                                 continue;
                             connection.setIsAlive(false);
+                            close(fd);
                             onDisconnect(connection);
                             continue;
                         }
                     }
-                    connection.setLastEvent(now);
-                    timeouts.add(connection, now);
+                    Long key = connection.setLastEvent(now);
+                    timeouts.put(now++, connection);
+                    if (key != null)
+                        timeouts.remove(key);
                 }
 
-                now -= ttl;
-                T connection;
-                while (timeouts.isNextBefore(now)) {
-                    connection = timeouts.poll();
-                    if (connection.getLastEvent() < now) {
-                        connection = deleteConnection(connection.fd);
-                        if (connection != null)
-                            close(connection);
-                    }
-                }
-
+                handleTimeOuts(now);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -158,6 +156,43 @@ public class EpollCore<T extends Connection> extends Thread {
             connections = array;
         }
         connections[connection.fd] = connection;
+    }
+
+    private Long acceptConnections(byte[] buffer, Long eventTime) {
+        events.position(0);
+        int k = acceptConnections(scope);
+        events.limit(k);
+        events.get(buffer, 0, k);
+//        eventCounter.addAndGet(k / 10);
+        for (int j = 0; j < k; j += 10) {
+            int fd = readInt(buffer, j);
+            T connection = createConnection(fd, readInt(buffer, j + 4), readShort(buffer, j + 8));
+            putConnection(connection);
+            onConnect(connection);
+            connection.setLastEvent(eventTime);
+            timeouts.put(eventTime++, connection);
+        }
+        return eventTime;
+    }
+
+    private void handleTimeOuts(Long eventTime) {
+        eventTime -= ttl * 1000000L * 1000;
+        T connection;
+        Map.Entry<Long, T> entry;
+
+        Iterator<Map.Entry<Long, T>> iterator = timeouts.entrySet().iterator();
+        while (iterator.hasNext()) {
+            entry = iterator.next();
+            if (entry.getKey() > eventTime)
+                break;
+
+            iterator.remove();
+            if (entry.getValue().isInvalid(eventTime)) {
+                connection = deleteConnection(entry.getValue().fd);
+                if (connection != null)
+                    close(connection);
+            }
+        }
     }
 
     private T getConnection(int fd) {
@@ -196,14 +231,18 @@ public class EpollCore<T extends Connection> extends Thread {
         return waitForEvents(scope, -1);
     }
 
-    public void startWriting(T connection) {
-        if (connection.isAlive())
+    void startWriting(Connection connection) {
+        if (connection.isAlive() && !connection.isWritingMode()) {
             startWriting(scope, connection.fd);
+            connection.setWritingMode(true);
+        }
     }
 
-    public void stopWriting(T connection) {
-        if (connection.isAlive())
+    void stopWriting(Connection connection) {
+        if (connection.isAlive() && connection.isWritingMode()) {
             stopWriting(scope, connection.fd);
+            connection.setWritingMode(false);
+        }
     }
 
     public void close(T connection) {
@@ -230,18 +269,28 @@ public class EpollCore<T extends Connection> extends Thread {
     }
 
     public int write(T connection, byte[] b, int offset, int length) throws IOException {
-        ByteBufferWrapper bb = byteBuffer.get();
-        int l = Math.min(length, bb.limit());
-        bb.put(b, offset, l);
-        return write(connection.fd, bb.address, 0, l);
+        int written = -1;
+        if (connection.isAlive()) {
+            ByteBufferWrapper bb = byteBuffer.get();
+            int l = Math.min(length, bb.limit());
+            bb.put(b, offset, l);
+            synchronized (connection) {
+                if (connection.isAlive())
+                    written = write(connection.fd, bb.address, 0, l);
+            }
+        }
+        return written;
     }
 
-    public int write(T connection, ReadableBytes readable) throws IOException {
+    int write(T connection, ReadableBytes readable) throws IOException {
         ByteBufferWrapper bb = byteBuffer.get();
         int r = readable.read(bb.buffer);
-        int written = connection.isAlive() ? write(connection.fd, bb.address, 0, r) : -1;
-        if (written != r)
-            readable.unread(r - (written < 0 ? 0 : written));
+        int written = -1;
+        if (connection.isAlive()) {
+            written = write(connection.fd, bb.address, 0, r);
+            if (written != r)
+                readable.unread(r - written);
+        }
 
         return written;
     }
@@ -271,6 +320,8 @@ public class EpollCore<T extends Connection> extends Thread {
     private native boolean stopListening(long scope);
 
     private native int waitForEvents(long scope, int timeout);
+
+    private native int acceptConnections(long scope);
 
     private native int connect(long scope, String host, int port);
 

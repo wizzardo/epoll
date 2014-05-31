@@ -2,6 +2,7 @@ package com.wizzardo.epoll;
 
 import com.wizzardo.epoll.readable.ReadableByteArray;
 import com.wizzardo.epoll.readable.ReadableBytes;
+import com.wizzardo.epoll.readable.ReadableBytes;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -18,7 +19,8 @@ public class Connection<T extends EpollCore> {
     protected volatile Queue<ReadableBytes> sending;
     protected T epoll;
     private String ipString;
-    private long lastEvent;
+    private Long lastEvent;
+    private volatile boolean writingMode = false;
     private volatile boolean alive = true;
 
     public Connection(T epoll, int fd, int ip, int port) {
@@ -51,11 +53,13 @@ public class Connection<T extends EpollCore> {
         return port;
     }
 
-    void setLastEvent(long lastEvent) {
+    Long setLastEvent(Long lastEvent) {
+        Long last = this.lastEvent;
         this.lastEvent = lastEvent;
+        return last;
     }
 
-    long getLastEvent() {
+    Long getLastEvent() {
         return lastEvent;
     }
 
@@ -63,7 +67,7 @@ public class Connection<T extends EpollCore> {
         return alive;
     }
 
-    void setIsAlive(boolean isAlive) {
+    synchronized void setIsAlive(boolean isAlive) {
         alive = isAlive;
     }
 
@@ -111,12 +115,11 @@ public class Connection<T extends EpollCore> {
 
                     sending.poll();
                 }
+                epoll.stopWriting(this);
             } catch (Exception e) {
                 e.printStackTrace();
                 epoll.close(this);
             }
-
-            epoll.stopWriting(this);
         }
 
     }
@@ -154,5 +157,17 @@ public class Connection<T extends EpollCore> {
 
     public int read(byte[] bytes, int offset, int length) throws IOException {
         return epoll.read(this, bytes, offset, length);
+    }
+
+    boolean isInvalid(Long now) {
+        return lastEvent.compareTo(now) <= 0;
+    }
+
+    boolean isWritingMode() {
+        return writingMode;
+    }
+
+    void setWritingMode(boolean enabled) {
+        writingMode = enabled;
     }
 }

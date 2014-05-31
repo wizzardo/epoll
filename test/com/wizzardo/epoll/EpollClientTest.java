@@ -4,6 +4,7 @@ import com.wizzardo.epoll.readable.ReadableByteArray;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 
 /**
  * @author: wizzardo
@@ -11,7 +12,7 @@ import java.io.IOException;
  */
 public class EpollClientTest {
     @Test
-    public void simpleTest() {
+    public void simpleTest() throws UnknownHostException {
         EpollCore epoll = new EpollCore<Connection>() {
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
