@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
  * @author: wizzardo
  * Date: 2/27/14
  */
-public interface ReadableBytes {
+public interface ReadableData {
     public int read(ByteBuffer byteBuffer);
 
     public void unread(int i);

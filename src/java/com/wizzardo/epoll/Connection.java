@@ -1,8 +1,7 @@
 package com.wizzardo.epoll;
 
 import com.wizzardo.epoll.readable.ReadableByteArray;
-import com.wizzardo.epoll.readable.ReadableBytes;
-import com.wizzardo.epoll.readable.ReadableBytes;
+import com.wizzardo.epoll.readable.ReadableData;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -16,7 +15,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class Connection<T extends EpollCore> {
     protected final int fd;
     protected final int ip, port;
-    protected volatile Queue<ReadableBytes> sending;
+    protected volatile Queue<ReadableData> sending;
     protected T epoll;
     private String ipString;
     private Long lastEvent;
@@ -87,11 +86,11 @@ public class Connection<T extends EpollCore> {
         write(new ReadableByteArray(bytes, offset, length));
     }
 
-    public void write(ReadableBytes readable) {
+    public void write(ReadableData readable) {
         if (sending == null)
             synchronized (this) {
                 if (sending == null)
-                    sending = new ConcurrentLinkedQueue<ReadableBytes>();
+                    sending = new ConcurrentLinkedQueue<ReadableData>();
             }
 
         sending.add(readable);
@@ -103,7 +102,7 @@ public class Connection<T extends EpollCore> {
             return;
 
         synchronized (this) {
-            ReadableBytes readable;
+            ReadableData readable;
             try {
                 while ((readable = sending.peek()) != null) {
                     while (!readable.isComplete() && epoll.write(this, readable) > 0) {

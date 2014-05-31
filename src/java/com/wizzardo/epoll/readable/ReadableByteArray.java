@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
  * @author: wizzardo
  * Date: 2/27/14
  */
-public class ReadableByteArray implements ReadableBytes {
+public class ReadableByteArray implements ReadableData {
     protected byte[] bytes;
     protected int offset, length, position;
 

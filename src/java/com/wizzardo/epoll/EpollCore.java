@@ -1,6 +1,7 @@
 package com.wizzardo.epoll;
 
-import com.wizzardo.epoll.readable.ReadableBytes;
+import com.wizzardo.epoll.readable.ReadableData;
+import com.wizzardo.epoll.readable.ReadableData;
 
 import java.io.*;
 import java.lang.reflect.Array;
@@ -282,7 +283,7 @@ public class EpollCore<T extends Connection> extends Thread {
         return written;
     }
 
-    int write(T connection, ReadableBytes readable) throws IOException {
+    int write(T connection, ReadableData readable) throws IOException {
         ByteBufferWrapper bb = byteBuffer.get();
         int r = readable.read(bb.buffer);
         int written = -1;

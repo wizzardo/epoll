@@ -1,7 +1,8 @@
 package com.wizzardo.epoll.sized;
 
 import com.wizzardo.epoll.Connection;
-import com.wizzardo.epoll.readable.ReadableBytes;
+import com.wizzardo.epoll.readable.ReadableData;
+import com.wizzardo.epoll.readable.ReadableData;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -19,11 +20,11 @@ public class SizedDataServerConnection extends Connection<SizedDataServer> {
     }
 
     @Override
-    public void write(ReadableBytes readable) {
+    public void write(ReadableData readable) {
         if (sending == null)
             synchronized (this) {
                 if (sending == null)
-                    sending = new ConcurrentLinkedQueue<ReadableBytes>();
+                    sending = new ConcurrentLinkedQueue<ReadableData>();
             }
 
         sending.add(readable);
