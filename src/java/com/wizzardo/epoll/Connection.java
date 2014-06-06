@@ -112,7 +112,7 @@ public class Connection<T extends EpollCore> {
                         return;
                     }
 
-                    sending.poll();
+                    onWriteData(sending.poll(), !sending.isEmpty());
                 }
                 epoll.stopWriting(this);
             } catch (Exception e) {
@@ -120,7 +120,9 @@ public class Connection<T extends EpollCore> {
                 epoll.close(this);
             }
         }
+    }
 
+    public void onWriteData(ReadableData readable, boolean hasMore) {
     }
 
     @Override
