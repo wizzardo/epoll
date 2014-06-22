@@ -1,7 +1,6 @@
 package com.wizzardo.epoll;
 
 import com.wizzardo.epoll.readable.ReadableData;
-import com.wizzardo.epoll.readable.ReadableData;
 
 import java.io.*;
 import java.lang.reflect.Array;
@@ -214,7 +213,9 @@ public class EpollCore<T extends Connection> extends Thread {
         }
         T connection = createConnection(connect(scope, host, port), 0, port);
         connection.setIpString(host);
-        putConnection(connection);
+        synchronized (this) {
+            putConnection(connection);
+        }
         onConnect(connection);
         return connection;
     }
