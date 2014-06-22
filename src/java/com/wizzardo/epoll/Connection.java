@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author: wizzardo
  * Date: 1/6/14
  */
-public class Connection<T extends EpollCore> {
+public class Connection<T extends EpollCore> implements Cloneable{
     protected final int fd;
     protected final int ip, port;
     protected volatile Queue<ReadableData> sending;
@@ -117,9 +117,13 @@ public class Connection<T extends EpollCore> {
                 epoll.stopWriting(this);
             } catch (Exception e) {
                 e.printStackTrace();
-                epoll.close(this);
+                close();
             }
         }
+    }
+
+    public void close(){
+        epoll.close(this);
     }
 
     public void onWriteData(ReadableData readable, boolean hasMore) {
