@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+#include <netinet/tcp.h>
 
 #define MAXEVENTS 1024
 
@@ -80,6 +80,19 @@ static int create_and_bind(const char *host, const char *port)
     return sfd;
 }
 
+static int make_socket_nodelay(int sfd) {
+    int flags;
+
+    flags = 1;
+    int s = setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, (char *) &flags, sizeof(int));
+    if (s < 0) {
+      perror ("setsockopt");
+      return -1;
+    }
+
+    return 0;
+}
+
 static int make_socket_non_blocking(int sfd)
 {
     int flags, s;
@@ -121,9 +134,10 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEn
     socklen_t in_len;
     int infd;
     in_len = sizeof addr;
+    errno = 0;
 
     while (1) {
-        infd = accept(sfd, &addr, &in_len);
+        infd = accept4(sfd, &addr, &in_len, SOCK_NONBLOCK);
         if (infd == -1) {
             if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
                 /* We have processed all incoming
@@ -145,7 +159,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEn
 //                ip += (addr.sa_data[5] < 0 ? 256 + addr.sa_data[5] : addr.sa_data[5]);
 //                fprintf(stderr, "new connection from  %d %d %d \n",infd, ip, port);
 
-        s = make_socket_non_blocking(infd);
+        s = make_socket_nodelay(infd);
         if (s == -1)
             abort();
 
@@ -233,8 +247,8 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
     return j;
 }
 
-void throwException(JNIEnv *env, char *message, jstring file)
-{
+void throwException(JNIEnv *env, char *message, jstring file) {
+    fprintf(stderr, "%d: %s\n", errno, message);
     jclass exc = (*env)->FindClass(env, "java/io/IOException");
     jmethodID constr = (*env)->GetMethodID(env, exc, "<init>", "(Ljava/lang/String;)V");
     jstring str = (*env)->NewStringUTF(env, message);
@@ -251,6 +265,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting(JNIEnv *en
 
     e.data.fd = fd;
     e.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+    errno = 0;
     s = epoll_ctl((*scope).efd, EPOLL_CTL_MOD, fd, &e);
     if (s == -1)
     {
@@ -268,6 +283,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting(JNIEnv *env
 
     e.data.fd = fd;
     e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+    errno = 0;
     s = epoll_ctl((*scope).efd, EPOLL_CTL_MOD, fd, &e);
     if (s == -1)
     {
@@ -286,10 +302,14 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_read(JNIEnv *env, jclas
         return -1;
     }
 
+    errno = 0;
     ssize_t count = read(fd, &(buf[offset]), length);
 
     if (count == 0)
     {
+        int err = errno;
+        if (err > 0 && err != EAGAIN)
+            throwException(env, strerror(err), NULL);
         // read(2) returns 0 on EOF. Java returns -1.
         return -1;
     }
@@ -317,6 +337,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_write(JNIEnv *env, jcla
 
     while (total != length)
     {
+        errno = 0;
         s = write(fd, &(buf[offset + total]), length - total);
 //                fprintf(stderr,"writed: %d\ttotal: %d\tfrom %d\n", s, total+(s>0?s:0),length);
         if (s == -1)
@@ -326,6 +347,10 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_write(JNIEnv *env, jcla
                 throwException(env, strerror(err), NULL);
             return total;
         }
+
+        int err = errno;
+        if (err > 0 && err != EAGAIN)
+            throwException(env, strerror(err), NULL);
         total += s;
     }
 
@@ -394,6 +419,11 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
         return -1;
     }
 
+    if (make_socket_nodelay(tcp_socket) < 0){
+        throwException(env, strerror(errno), NULL);
+        return -1;
+    }
+
     event.data.fd = tcp_socket;
     event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
     if (epoll_ctl(efd, EPOLL_CTL_ADD, tcp_socket, &event) < 0){
@@ -439,6 +469,10 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, job
         abort();
 
     int s = make_socket_non_blocking(sfd);
+    if (s == -1)
+        abort();
+
+    s = make_socket_nodelay(sfd);
     if (s == -1)
         abort();
 
