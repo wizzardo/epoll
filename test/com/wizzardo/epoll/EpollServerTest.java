@@ -20,8 +20,7 @@ public class EpollServerTest {
     @Test
     public void startStopTest() throws InterruptedException {
         int port = 9091;
-        EpollServer server = new EpollServer(port) {
-        };
+        EpollServer server = new EpollServer(port);
 
         server.start();
 
@@ -44,19 +43,23 @@ public class EpollServerTest {
     public void echoTest() throws InterruptedException {
         int port = 9090;
         EpollServer server = new EpollServer(port) {
-
             @Override
-            public void onRead(Connection connection) {
-                try {
-                    byte[] b = new byte[1024];
-                    int r = read(connection, b, 0, b.length);
-                    int w = 0;
-                    while (w < r) {
-                        w += write(connection, b, w, r - w);
+            protected IOThread createIOThread() {
+                return new IOThread() {
+                    @Override
+                    public void onRead(Connection connection) {
+                        try {
+                            byte[] b = new byte[1024];
+                            int r = read(connection, b, 0, b.length);
+                            int w = 0;
+                            while (w < r) {
+                                w += write(connection, b, w, r - w);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                };
             }
         };
 
@@ -87,16 +90,23 @@ public class EpollServerTest {
 //            byte[] response = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
 
             @Override
-            public void onRead(Connection connection) {
-                try {
+            protected IOThread createIOThread() {
+                return new IOThread() {
+
                     byte[] b = new byte[1024];
-                    int r = read(connection, b, 0, b.length);
+
+                    @Override
+                    public void onRead(Connection connection) {
+                        try {
+                            int r = read(connection, b, 0, b.length);
 //                    System.out.println(new String(b,0,r));
-                       connection.write(response);
+                            connection.write(response);
 //                    close(connection);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                };
             }
         };
 
@@ -111,19 +121,24 @@ public class EpollServerTest {
     public void maxEventsTest() throws InterruptedException {
         final int port = 9092;
         EpollServer server = new EpollServer(null, port, 2) {
-
             @Override
-            public void onRead(Connection connection) {
-                try {
-                    byte[] b = new byte[1024];
-                    int r = read(connection, b, 0, b.length);
-                    int w = 0;
-                    while (w < r) {
-                        w += write(connection, b, w, r - w);
+            protected IOThread createIOThread() {
+                return new IOThread() {
+
+                    @Override
+                    public void onRead(Connection connection) {
+                        try {
+                            byte[] b = new byte[1024];
+                            int r = read(connection, b, 0, b.length);
+                            int w = 0;
+                            while (w < r) {
+                                w += write(connection, b, w, r - w);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                };
             }
         };
 
@@ -177,19 +192,24 @@ public class EpollServerTest {
 //        String host = "192.168.0.131";
         String host = "192.168.1.144";
         EpollServer server = new EpollServer(host, port) {
-
             @Override
-            public void onRead(Connection connection) {
-                try {
-                    byte[] b = new byte[1024];
-                    int r = read(connection, b, 0, b.length);
-                    int w = 0;
-                    while (w < r) {
-                        w += write(connection, b, w, r - w);
+            protected IOThread createIOThread() {
+                return new IOThread() {
+
+                    @Override
+                    public void onRead(Connection connection) {
+                        try {
+                            byte[] b = new byte[1024];
+                            int r = read(connection, b, 0, b.length);
+                            int w = 0;
+                            while (w < r) {
+                                w += write(connection, b, w, r - w);
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                };
             }
         };
 

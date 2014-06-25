@@ -17,17 +17,22 @@ public class EpollClientTest {
         EpollCore epoll = new EpollCore<Connection>() {
 
             @Override
-            public void onRead(Connection connection) {
-                System.out.println("onRead " + connection);
-                byte[] b = new byte[1024];
-                int r = 0;
+            protected IOThread<Connection> createIOThread() {
+                return new IOThread<Connection>() {
+                    @Override
+                    public void onRead(Connection connection) {
+                        System.out.println("onRead " + connection);
+                        byte[] b = new byte[1024];
+                        int r = 0;
 
-                try {
-                    r = connection.read(b, 0, b.length);
-                } catch (IOException e) {
-                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                }
-                System.out.println(new String(b, 0, r));
+                        try {
+                            r = connection.read(b, 0, b.length);
+                        } catch (IOException e) {
+                            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                        }
+                        System.out.println(new String(b, 0, r));
+                    }
+                };
             }
         };
 
@@ -57,8 +62,8 @@ public class EpollClientTest {
         }
     }
 
-    //    @Test
-    public void benchamrk() throws IOException, InterruptedException {
+//    @Test
+    public void benchmark() throws IOException, InterruptedException {
 //        final byte[] request = ("GET /grails2_4/ HTTP/1.1\r\n" +
         final byte[] request = ("GET / HTTP/1.1\r\n" +
                 "Host: localhost:8084\r\n" +
@@ -75,26 +80,31 @@ public class EpollClientTest {
             }
 
             @Override
-            public void onRead(BenchmarkConnection connection) {
+            protected IOThread<BenchmarkConnection> createIOThread() {
+                return new IOThread<BenchmarkConnection>() {
+                    @Override
+                    public void onRead(BenchmarkConnection connection) {
 //                System.out.println("onRead " + connection);
-                int r = 0;
+                        int r = 0;
 
-                try {
-                    r = connection.read(b, 0, b.length);
-                } catch (IOException e) {
-                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                }
+                        try {
+                            r = connection.read(b, 0, b.length);
+                        } catch (IOException e) {
+                            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                        }
 //                System.out.println(new String(b, 0, r));
 //                System.out.println("length: "+r);
-                connection.read += r;
+                        connection.read += r;
 //                if (connection.read >= 170) {
-                if (connection.read >= 113) {
-                    counter.incrementAndGet();
-                    connection.read = 0;
-                    connection.write(request);
+                        if (connection.read >= 113) {
+                            counter.incrementAndGet();
+                            connection.read = 0;
+                            connection.write(request);
 //                    connection.epoll.close(connection);
-                }
+                        }
 
+                    }
+                };
             }
         };
 

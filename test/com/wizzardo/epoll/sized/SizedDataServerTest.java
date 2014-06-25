@@ -24,11 +24,6 @@ public class SizedDataServerTest {
                 System.out.println(new String(data));
                 connection.write(new ReadableByteArrayWithSize(new String(data).toUpperCase().getBytes()));
             }
-
-            @Override
-            protected SizedDataServerConnection createConnection(int fd, int ip, int port) {
-                return new SizedDataServerConnection(fd, ip, port);
-            }
         };
         server.start();
 

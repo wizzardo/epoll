@@ -2,6 +2,7 @@ package com.wizzardo.epoll.sized;
 
 import com.wizzardo.epoll.Connection;
 import com.wizzardo.epoll.EpollServer;
+import com.wizzardo.epoll.IOThread;
 import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.io.BytesTools;
 
@@ -27,68 +28,82 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
         threadPool = new ThreadPool(threads);
     }
 
+
     @Override
-    public void onRead(final T connection) {
-//        System.out.println("onRead: " + connection);
-        FixedSizeWritableByteArray r = reading.get(connection);
-        if (r == null) {
-            r = new FixedSizeWritableByteArray(4);
-            reading.put(connection, r);
-        }
-        if (!r.isComplete()) {
-            try {
-                ByteBuffer bb = null;
-                while ((bb == null || bb.limit() > 0) && r.remaining() > 0) {
-                    bb = read(connection, r.remaining());
-//                    System.out.println("remaining: "+r.remaining());
-                    r.write(bb);
-//                    System.out.println("read: " + bb.limit() + "\t" + r.offset() + "/" + r.length());
-                    if (r.length() > 4)
-                        connection.read(r.offset(), r.length());
-                }
-            } catch (IOException e) {
-                connection.close();
-            }
-        }
-        if (r.isComplete()) {
-            if (r.length() == 4) {
-                reading.put(connection, new FixedSizeWritableByteArray(BytesTools.toInt(r.getData())));
-                onRead(connection);
-            } else {
-                reading.remove(connection);
-                final byte[] data = r.getData();
-                threadPool.add(new Runnable() {
-                    @Override
-                    public void run() {
-                        handleData(connection, data);
-                    }
-                });
-            }
-        }
+    protected T createConnection(int fd, int ip, int port) {
+        return (T) new SizedDataServerConnection(fd, ip, port);
     }
 
     @Override
-    public void onWrite(T connection) {
-        createTaskToSendData(connection);
-    }
-
-    protected void createTaskToSendData(final T connection) {
-        threadPool.add(new Runnable() {
-            @Override
-            public void run() {
-                connection.write();
-            }
-        });
-    }
-
-    @Override
-    public void onConnect(T connection) {
-    }
-
-    @Override
-    public void onDisconnect(T connection) {
-        reading.remove(connection);
+    protected IOThread<T> createIOThread() {
+        return new SizedIOThread();
     }
 
     protected abstract void handleData(T connection, byte[] data);
+
+    private class SizedIOThread extends IOThread<T> {
+
+        @Override
+        public void onRead(final T connection) {
+//        System.out.println("onRead: " + connection);
+            FixedSizeWritableByteArray r = reading.get(connection);
+            if (r == null) {
+                r = new FixedSizeWritableByteArray(4);
+                reading.put(connection, r);
+            }
+            if (!r.isComplete()) {
+                try {
+                    ByteBuffer bb = null;
+                    while ((bb == null || bb.limit() > 0) && r.remaining() > 0) {
+                        bb = read(connection, r.remaining());
+//                    System.out.println("remaining: "+r.remaining());
+                        r.write(bb);
+//                    System.out.println("read: " + bb.limit() + "\t" + r.offset() + "/" + r.length());
+                        if (r.length() > 4)
+                            connection.read(r.offset(), r.length());
+                    }
+                } catch (IOException e) {
+                    connection.close();
+                }
+            }
+            if (r.isComplete()) {
+                if (r.length() == 4) {
+                    reading.put(connection, new FixedSizeWritableByteArray(BytesTools.toInt(r.getData())));
+                    onRead(connection);
+                } else {
+                    reading.remove(connection);
+                    final byte[] data = r.getData();
+                    threadPool.add(new Runnable() {
+                        @Override
+                        public void run() {
+                            handleData(connection, data);
+                        }
+                    });
+                }
+            }
+        }
+
+        @Override
+        public void onWrite(T connection) {
+            createTaskToSendData(connection);
+        }
+
+        protected void createTaskToSendData(final T connection) {
+            threadPool.add(new Runnable() {
+                @Override
+                public void run() {
+                    connection.write();
+                }
+            });
+        }
+
+        @Override
+        public void onConnect(T connection) {
+        }
+
+        @Override
+        public void onDisconnect(T connection) {
+            reading.remove(connection);
+        }
+    }
 }

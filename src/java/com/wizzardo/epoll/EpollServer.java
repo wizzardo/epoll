@@ -4,7 +4,7 @@ package com.wizzardo.epoll;
  * @author: wizzardo
  * Date: 5/8/14
  */
-public abstract class EpollServer<T extends Connection> extends EpollCore<T> {
+public class EpollServer<T extends Connection> extends EpollCore<T> {
 
     public EpollServer(int port) {
         this(null, port);

@@ -77,7 +77,7 @@ public class EpollCore<T extends Connection> extends Thread {
     public void run() {
         ioThreads = new IOThread[ioThreadsCount];
         for (int i = 0; i < ioThreadsCount; i++) {
-            ioThreads[i] = new IOThread(this);
+            ioThreads[i] = createIOThread();
             ioThreads[i].start();
         }
 
@@ -138,7 +138,6 @@ public class EpollCore<T extends Connection> extends Thread {
             int fd = readInt(buffer, j);
             T connection = createConnection(fd, readInt(buffer, j + 4), readShort(buffer, j + 8));
             putConnection(connection, eventTime++);
-            onConnect(connection);
         }
         return eventTime;
     }
@@ -163,7 +162,6 @@ public class EpollCore<T extends Connection> extends Thread {
         synchronized (this) {
             putConnection(connection, System.currentTimeMillis());
         }
-        onConnect(connection);
         return connection;
     }
 
@@ -238,22 +236,13 @@ public class EpollCore<T extends Connection> extends Thread {
         return written;
     }
 
-    public void onRead(T connection) {
-    }
-
-    public void onWrite(T connection) {
-        connection.write();
-    }
-
-    public void onConnect(T connection) {
-    }
-
-    public void onDisconnect(T connection) {
-    }
-
     //    protected abstract T createConnection(int fd, int ip, int port);
     protected T createConnection(int fd, int ip, int port) {
         return (T) new Connection(fd, ip, port);
+    }
+
+    protected IOThread<T> createIOThread() {
+        return new IOThread<T>();
     }
 
     native void close(int fd);

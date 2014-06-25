@@ -1,5 +1,6 @@
 package com.wizzardo.epoll;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -11,25 +12,22 @@ import static com.wizzardo.epoll.Utils.readInt;
  * @author: wizzardo
  * Date: 6/25/14
  */
-public class IOThread extends EpollCore<Connection> {
+public class IOThread<T extends Connection> extends EpollCore<T> {
     private static AtomicInteger number = new AtomicInteger();
 
-    private volatile boolean running = true;
     private long ttl = 30000;
-    private Connection[] connections;
-    private LinkedHashMap<Long, Connection> timeouts = new LinkedHashMap<Long, Connection>();
+    private T[] connections;
+    private LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
     private AtomicInteger connectionsCounter = new AtomicInteger();
-    private EpollCore parent;
 
-    public IOThread(EpollCore parent) {
-        this.parent = parent;
-        setName("IOThread_" + number.incrementAndGet());
+    public IOThread() {
+        setName("IOThread-" + number.incrementAndGet());
     }
 
     @Override
     public void run() {
         byte[] events = new byte[this.events.capacity()];
-        System.out.println("start new ioThread");
+//        System.out.println("start new ioThread");
 
         while (running) {
             try {
@@ -47,7 +45,7 @@ public class IOThread extends EpollCore<Connection> {
                     int fd = readInt(events, i);
 //                    System.out.println("event on fd " + fd + ": " + event);
                     i += 4;
-                    Connection connection = null;
+                    T connection = null;
                     switch (event) {
                         case 1: {
                             connection = getConnection(fd);
@@ -55,7 +53,7 @@ public class IOThread extends EpollCore<Connection> {
                                 connection.close();
                                 continue;
                             } else
-                                parent.onRead(connection);
+                                onRead(connection);
                             break;
                         }
                         case 2: {
@@ -64,7 +62,7 @@ public class IOThread extends EpollCore<Connection> {
                                 connection.close();
                                 continue;
                             } else
-                                parent.onWrite(connection);
+                                onWrite(connection);
                             break;
                         }
                         case 3: {
@@ -92,10 +90,10 @@ public class IOThread extends EpollCore<Connection> {
 
     private void handleTimeOuts(Long eventTime) {
         eventTime -= ttl * 1000000L * 1000;
-        Connection connection;
-        Map.Entry<Long, Connection> entry;
+        T connection;
+        Map.Entry<Long, T> entry;
 
-        Iterator<Map.Entry<Long, Connection>> iterator = timeouts.entrySet().iterator();
+        Iterator<Map.Entry<Long, T>> iterator = timeouts.entrySet().iterator();
         while (iterator.hasNext()) {
             entry = iterator.next();
             if (entry.getKey() > eventTime)
@@ -110,20 +108,19 @@ public class IOThread extends EpollCore<Connection> {
         }
     }
 
-    private Connection getConnection(int fd) {
+    private T getConnection(int fd) {
         return connections[fd];
     }
 
-    private Connection deleteConnection(int fd) {
-        Connection connection = connections[fd];
+    private T deleteConnection(int fd) {
+        T connection = connections[fd];
         connections[fd] = null;
         return connection;
     }
 
-    protected void putConnection(Connection connection, Long eventTime) {
+    protected void putConnection(T connection, Long eventTime) {
         if (connections == null || connections.length <= connection.fd) {
-//            Connection[] array = (Connection[]) Array.newInstance(connection.getClass(), connection.fd * 3 / 2);
-            Connection[] array = new Connection[connection.fd * 3 / 2];
+            T[] array = (T[]) Array.newInstance(connection.getClass(), connection.fd * 3 / 2);
             if (connections != null)
                 System.arraycopy(connections, 0, array, 0, connections.length);
             connections = array;
@@ -134,16 +131,30 @@ public class IOThread extends EpollCore<Connection> {
         connection.setIOThread(this);
         attach(scope, connection.fd);
         connection.setLastEvent(eventTime);
+        onConnect(connection);
     }
 
-    public void close(Connection connection) {
+    public void close(T connection) {
         connection.setIsAlive(false);
         close(connection.fd);
         connectionsCounter.decrementAndGet();
-        parent.onDisconnect(connection);
+        onDisconnect(connection);
     }
 
     public int getConnectionsCount() {
         return connectionsCounter.get();
+    }
+
+    public void onRead(T connection) {
+    }
+
+    public void onWrite(T connection) {
+        connection.write();
+    }
+
+    public void onConnect(T connection) {
+    }
+
+    public void onDisconnect(T connection) {
     }
 }
