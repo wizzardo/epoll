@@ -47,7 +47,7 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
                         connection.read(r.offset(), r.length());
                 }
             } catch (IOException e) {
-                close(connection);
+                connection.close();
             }
         }
         if (r.isComplete()) {
@@ -87,12 +87,6 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
 
     @Override
     public void onDisconnect(T connection) {
-        reading.remove(connection);
-    }
-
-    @Override
-    public void close(T connection) {
-        super.close(connection);
         reading.remove(connection);
     }
 

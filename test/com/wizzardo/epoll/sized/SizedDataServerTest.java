@@ -27,7 +27,7 @@ public class SizedDataServerTest {
 
             @Override
             protected SizedDataServerConnection createConnection(int fd, int ip, int port) {
-                return new SizedDataServerConnection(this, fd, ip, port);
+                return new SizedDataServerConnection(fd, ip, port);
             }
         };
         server.start();
@@ -49,6 +49,6 @@ public class SizedDataServerTest {
 //        Thread.sleep(5 * 60 * 1000);
         Thread.sleep(1 * 1000);
 
-        server.stopServer();
+        server.stopEpoll();
     }
 }

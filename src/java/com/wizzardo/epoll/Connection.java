@@ -12,21 +12,20 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author: wizzardo
  * Date: 1/6/14
  */
-public class Connection<T extends EpollCore> implements Cloneable{
+public class Connection implements Cloneable {
     protected final int fd;
     protected final int ip, port;
     protected volatile Queue<ReadableData> sending;
-    protected T epoll;
+    protected volatile IOThread epoll;
     private String ipString;
     private Long lastEvent;
     private volatile boolean writingMode = false;
     private volatile boolean alive = true;
 
-    public Connection(T epoll, int fd, int ip, int port) {
+    public Connection(int fd, int ip, int port) {
         this.fd = fd;
         this.ip = ip;
         this.port = port;
-        this.epoll = epoll;
     }
 
     public String getIp() {
@@ -122,7 +121,7 @@ public class Connection<T extends EpollCore> implements Cloneable{
         }
     }
 
-    public void close(){
+    public void close() {
         epoll.close(this);
     }
 
@@ -174,5 +173,9 @@ public class Connection<T extends EpollCore> implements Cloneable{
 
     void setWritingMode(boolean enabled) {
         writingMode = enabled;
+    }
+
+    public void setIOThread(IOThread IOThread) {
+        epoll = IOThread;
     }
 }

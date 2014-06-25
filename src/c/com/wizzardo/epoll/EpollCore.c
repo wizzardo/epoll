@@ -122,6 +122,15 @@ static void intToBytes(int i, char* b){
     b[3] = (i) & 0xff;
 }
 
+void throwException(JNIEnv *env, char *message, jstring file) {
+    fprintf(stderr, "%d: %s\n", errno, message);
+    jclass exc = (*env)->FindClass(env, "java/io/IOException");
+    jmethodID constr = (*env)->GetMethodID(env, exc, "<init>", "(Ljava/lang/String;)V");
+    jstring str = (*env)->NewStringUTF(env, message);
+    jthrowable t = (jthrowable) (*env)->NewObject(env, exc, constr, str, file);
+    (*env)->Throw(env, t);
+}
+
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEnv *env, jobject obj, jlong scopePointer) {
     int s, j = 0;
     struct Scope *scope = (struct Scope *)scopePointer;
@@ -163,13 +172,13 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEn
         if (s == -1)
             abort();
 
-        event.data.fd = infd;
-        event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-        s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event);
-        if (s == -1) {
-            perror("epoll_ctl");
-            abort();
-        }
+//        event.data.fd = infd;
+//        event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+//        s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event);
+//        if (s == -1) {
+//            perror("epoll_ctl");
+//            abort();
+//        }
 
         intToBytes(infd, &jEvents[j]);
         j += 4;
@@ -187,6 +196,22 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEn
     return j;
 }
 
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env, jobject obj, jlong scopePointer, jint infd) {
+    int s;
+    struct epoll_event e;
+    struct Scope *scope = (struct Scope *)scopePointer;
+    errno = 0;
+
+    e.data.fd = infd;
+    e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+    s = epoll_ctl((*scope).efd, EPOLL_CTL_ADD, infd, &e);
+    if (s == -1) {
+        throwException(env, strerror(errno), NULL);
+        perror("epoll_ctl");
+        abort();
+    }
+}
+
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout) {
     int n, i, s, j = 0;
     struct Scope *scope = (struct Scope *)scopePointer;
@@ -201,9 +226,9 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
     else
         n = epoll_wait(efd, events, scope->maxEvents, -1);
 
-//    fprintf(stderr, "get %d events\n", n);
+//    fprintf(stderr, "get %d events on epoll %d\n", n, efd);
     for (i = 0; i < n; i++) {
-//            fprintf(stderr, "fd: %d, event: %d\n", events[i].data.fd, events[i].events);
+//        fprintf(stderr, "fd: %d, event: %d, epoll: %d\n", events[i].data.fd, events[i].events, efd);
         if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (events[i].events & EPOLLRDHUP) || (!(events[i].events & EPOLLIN) && !(events[i].events & EPOLLOUT))) {
             /* An error has occured on this fd, or the socket is not
                ready for reading (why were we notified then?) */
@@ -246,16 +271,6 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
 
     return j;
 }
-
-void throwException(JNIEnv *env, char *message, jstring file) {
-    fprintf(stderr, "%d: %s\n", errno, message);
-    jclass exc = (*env)->FindClass(env, "java/io/IOException");
-    jmethodID constr = (*env)->GetMethodID(env, exc, "<init>", "(Ljava/lang/String;)V");
-    jstring str = (*env)->NewStringUTF(env, message);
-    jthrowable t = (jthrowable) (*env)->NewObject(env, exc, constr, str, file);
-    (*env)->Throw(env, t);
-}
-
 
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
 {

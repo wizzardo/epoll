@@ -29,6 +29,9 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_init
   (JNIEnv *, jobject, jint, jobject);
 
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_attach
+  (JNIEnv *, jobject, jlong, jint);
+
 /*
  * Class:     com_wizzardo_epoll_EpollCore
  * Method:    stopListening

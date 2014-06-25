@@ -21,18 +21,13 @@ public class EpollServerTest {
     public void startStopTest() throws InterruptedException {
         int port = 9091;
         EpollServer server = new EpollServer(port) {
-
-            @Override
-            protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(this, fd, ip, port);
-            }
         };
 
         server.start();
 
         Thread.sleep(500);
 
-        server.stopServer();
+        server.stopEpoll();
 
         Thread.sleep(510);
 
@@ -49,11 +44,6 @@ public class EpollServerTest {
     public void echoTest() throws InterruptedException {
         int port = 9090;
         EpollServer server = new EpollServer(port) {
-
-            @Override
-            protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(this, fd, ip, port);
-            }
 
             @Override
             public void onRead(Connection connection) {
@@ -85,21 +75,16 @@ public class EpollServerTest {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        server.stopServer();
+        server.stopEpoll();
     }
 
-    //    @Test
+    @Test
     public void httpTest() throws InterruptedException {
-        int port = 9090;
+        int port = 8084;
         EpollServer server = new EpollServer(port) {
 
             byte[] response = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
 //            byte[] response = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
-
-            @Override
-            protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(this, fd, ip, port);
-            }
 
             @Override
             public void onRead(Connection connection) {
@@ -107,10 +92,7 @@ public class EpollServerTest {
                     byte[] b = new byte[1024];
                     int r = read(connection, b, 0, b.length);
 //                    System.out.println(new String(b,0,r));
-                    int w = 0;
-                    while (w < response.length) {
-                        w += write(connection, response, w, response.length - w);
-                    }
+                       connection.write(response);
 //                    close(connection);
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -120,20 +102,15 @@ public class EpollServerTest {
 
         server.start();
 
-        Thread.sleep(5 * 60 * 1000);
+        Thread.sleep(25 * 60 * 1000);
 
-        server.stopServer();
+        server.stopEpoll();
     }
 
     @Test
     public void maxEventsTest() throws InterruptedException {
         final int port = 9092;
         EpollServer server = new EpollServer(null, port, 2) {
-
-            @Override
-            protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(this, fd, ip, port);
-            }
 
             @Override
             public void onRead(Connection connection) {
@@ -191,19 +168,15 @@ public class EpollServerTest {
         time = System.currentTimeMillis() - time;
         System.out.println("for " + time + "ms");
         System.out.println(total.get() * 1000.0 / time / 1024.0 / 1024.0);
-        server.stopServer();
+        server.stopEpoll();
     }
 
     @Test
     public void hostBindTest() throws InterruptedException {
         int port = 9090;
-        String host = "192.168.0.131";
+//        String host = "192.168.0.131";
+        String host = "192.168.1.144";
         EpollServer server = new EpollServer(host, port) {
-
-            @Override
-            protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(this, fd, ip, port);
-            }
 
             @Override
             public void onRead(Connection connection) {
@@ -243,6 +216,6 @@ public class EpollServerTest {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        server.stopServer();
+        server.stopEpoll();
     }
 }
