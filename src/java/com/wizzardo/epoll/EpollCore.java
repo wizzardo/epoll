@@ -221,7 +221,7 @@ public class EpollCore<T extends Connection> extends Thread {
     }
 
     protected boolean bind(String host, int port) {
-        scope = listen(scope, host, String.valueOf(port));
+        listen(scope, host, String.valueOf(port));
         return true;
     }
 
@@ -317,7 +317,7 @@ public class EpollCore<T extends Connection> extends Thread {
 
     private native long init(int maxEvents, ByteBuffer events);
 
-    private native long listen(long scope, String host, String port);
+    private native void listen(long scope, String host, String port);
 
     private native boolean stopListening(long scope);
 
