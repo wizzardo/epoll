@@ -70,11 +70,15 @@ public class EpollCore<T extends Connection> extends Thread {
         scope = init(maxEvents, events);
     }
 
+    public void setIoThreadsCount(int ioThreadsCount) {
+        this.ioThreadsCount = ioThreadsCount;
+    }
 
 //    protected AtomicInteger eventCounter = new AtomicInteger(0);
 
     @Override
     public void run() {
+        System.out.println("io threads count: " + ioThreadsCount);
         ioThreads = new IOThread[ioThreadsCount];
         for (int i = 0; i < ioThreadsCount; i++) {
             ioThreads[i] = createIOThread();
@@ -110,7 +114,7 @@ public class EpollCore<T extends Connection> extends Thread {
                 e.printStackTrace();
             }
         }
-        for (int i = 0; i < ioThreadsCount; i++) {
+        for (int i = 0; i < ioThreads.length; i++) {
             ioThreads[i].stopEpoll();
         }
     }
