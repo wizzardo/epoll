@@ -107,13 +107,13 @@ public class Connection implements Cloneable {
                     while (!readable.isComplete() && epoll.write(this, readable) > 0) {
                     }
                     if (!readable.isComplete()) {
-                        epoll.startWriting(this);
+                        enableOnWriteEvent();
                         return;
                     }
 
                     onWriteData(sending.poll(), !sending.isEmpty());
                 }
-                epoll.stopWriting(this);
+                disableOnWriteEvent();
             } catch (Exception e) {
                 e.printStackTrace();
                 close();
@@ -123,6 +123,14 @@ public class Connection implements Cloneable {
 
     public void close() {
         epoll.close(this);
+    }
+
+    protected void enableOnWriteEvent() {
+        epoll.startWriting(this);
+    }
+
+    protected void disableOnWriteEvent() {
+        epoll.stopWriting(this);
     }
 
     public void onWriteData(ReadableData readable, boolean hasMore) {
