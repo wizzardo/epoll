@@ -207,7 +207,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env, job
     s = epoll_ctl((*scope).efd, EPOLL_CTL_ADD, infd, &e);
     if (s == -1) {
         throwException(env, strerror(errno), NULL);
-        perror("epoll_ctl");
+        perror("epoll_ctl on attach");
         abort();
     }
 }
@@ -285,7 +285,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting(JNIEnv *en
     if (s == -1)
     {
         throwException(env, strerror(errno), NULL);
-        perror("epoll_ctl");
+        perror("epoll_ctl on startWriting");
         abort();
     }
 }
@@ -303,7 +303,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting(JNIEnv *env
     if (s == -1)
     {
         throwException(env, strerror(errno), NULL);
-        perror("epoll_ctl");
+        perror("epoll_ctl on stopWriting");
         abort();
     }
 }
@@ -391,9 +391,9 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopListening(JNIEn
 
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jobject obj, jlong scopePointer, jstring host, jint port)
 {
-    struct Scope *scope = (struct Scope *)scopePointer;
-    struct epoll_event event = scope->event;
-    int efd = scope->efd;
+//    struct Scope *scope = (struct Scope *)scopePointer;
+//    struct epoll_event event = scope->event;
+//    int efd = scope->efd;
 
     const char *hhost = (*env)->GetStringUTFChars(env, host, NULL);
 
@@ -439,12 +439,12 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
         return -1;
     }
 
-    event.data.fd = tcp_socket;
-    event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-    if (epoll_ctl(efd, EPOLL_CTL_ADD, tcp_socket, &event) < 0){
-        throwException(env, strerror(errno), NULL);
-        return -1;
-    }
+//    event.data.fd = tcp_socket;
+//    event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+//    if (epoll_ctl(efd, EPOLL_CTL_ADD, tcp_socket, &event) < 0){
+//        throwException(env, strerror(errno), NULL);
+//        return -1;
+//    }
 
     return tcp_socket;
 }
@@ -453,7 +453,7 @@ JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_init(JNIEnv *env, jobj
     int efd = epoll_create1(0);
     if (efd == -1)
     {
-        perror("epoll_create");
+        perror("epoll_ctl on init");
         abort();
     }
 
@@ -504,7 +504,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, job
     event.events = EPOLLIN | EPOLLET;
     s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
     if (s == -1){
-        perror("epoll_ctl");
+        perror("epoll_ctl on listen");
         abort();
     }
 
