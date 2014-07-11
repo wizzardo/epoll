@@ -26,8 +26,8 @@ public class EpollCore<T extends Connection> extends Thread {
     volatile long scope;
     protected volatile boolean running = true;
     private static final Pattern IP_PATTERN = Pattern.compile("[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}");
-    private long ttl = 30000;
     private int ioThreadsCount = 8;
+    long ttl = 30000;
 
     private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
         @Override
@@ -82,6 +82,7 @@ public class EpollCore<T extends Connection> extends Thread {
         ioThreads = new IOThread[ioThreadsCount];
         for (int i = 0; i < ioThreadsCount; i++) {
             ioThreads[i] = createIOThread();
+            ioThreads[i].setTTL(ttl);
             ioThreads[i].start();
         }
 
@@ -164,7 +165,7 @@ public class EpollCore<T extends Connection> extends Thread {
         T connection = createConnection(connect(scope, host, port), 0, port);
         connection.setIpString(host);
         synchronized (this) {
-            putConnection(connection, System.currentTimeMillis());
+            putConnection(connection, System.nanoTime() * 1000);
         }
         return connection;
     }

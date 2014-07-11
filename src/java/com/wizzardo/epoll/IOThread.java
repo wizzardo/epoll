@@ -15,7 +15,6 @@ import static com.wizzardo.epoll.Utils.readInt;
 public class IOThread<T extends Connection> extends EpollCore<T> {
     private static AtomicInteger number = new AtomicInteger();
 
-    private long ttl = 30000;
     private T[] connections;
     private LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
     private AtomicInteger connectionsCounter = new AtomicInteger();
