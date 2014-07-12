@@ -29,7 +29,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_init
   (JNIEnv *, jobject, jint, jobject);
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_attach
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_attach
   (JNIEnv *, jobject, jlong, jint);
 
 /*
@@ -53,7 +53,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents
  * Method:    startWriting
  * Signature: (JI)V
  */
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting
   (JNIEnv *, jobject, jlong, jint);
 
 /*
@@ -61,7 +61,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting
  * Method:    stopWriting
  * Signature: (JI)V
  */
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting
   (JNIEnv *, jobject, jlong, jint);
 
 /*

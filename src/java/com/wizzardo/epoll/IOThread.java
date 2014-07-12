@@ -44,35 +44,29 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                     int fd = readInt(events, i);
 //                    System.out.println("event on fd " + fd + ": " + event);
                     i += 4;
-                    T connection = null;
+                    T connection = getConnection(fd);
+                    if (connection == null) {
+                        close(fd);
+                        continue;
+                    }
+
                     switch (event) {
                         case 1: {
-                            connection = getConnection(fd);
-                            if (connection == null) {
-                                connection.close();
-                                continue;
-                            } else
-                                onRead(connection);
+                            onRead(connection);
                             break;
                         }
                         case 2: {
-                            connection = getConnection(fd);
-                            if (connection == null) {
-                                connection.close();
-                                continue;
-                            } else
-                                onWrite(connection);
+                            onWrite(connection);
                             break;
                         }
                         case 3: {
-                            connection = getConnection(fd);
-                            deleteConnection(fd);
-                            if (connection == null)
-                                continue;
                             connection.close();
                             continue;
                         }
+                        default:
+                            throw new IllegalStateException("this thread only for read/write/close events, event: " + event);
                     }
+
                     Long key = connection.setLastEvent(now);
                     timeouts.put(now++, connection);
                     if (key != null)
@@ -124,13 +118,15 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                 System.arraycopy(connections, 0, array, 0, connections.length);
             connections = array;
         }
-        connections[connection.fd] = connection;
-        connectionsCounter.incrementAndGet();
 
-        connection.setIOThread(this);
-        attach(scope, connection.fd);
-        connection.setLastEvent(eventTime);
-        onConnect(connection);
+        if (attach(scope, connection.fd)) {
+            connection.setIOThread(this);
+            connections[connection.fd] = connection;
+            connectionsCounter.incrementAndGet();
+            connection.setLastEvent(eventTime);
+            onConnect(connection);
+        } else
+            close(connection.fd);
     }
 
     public void close(T connection) {
@@ -138,6 +134,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         close(connection.fd);
         connectionsCounter.decrementAndGet();
         onDisconnect(connection);
+        deleteConnection(connection.fd);
     }
 
     public int getConnectionsCount() {

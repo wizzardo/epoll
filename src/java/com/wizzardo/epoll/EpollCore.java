@@ -108,7 +108,7 @@ public class EpollCore<T extends Connection> extends Thread {
                             break;
                         }
                         default:
-                            throw new IllegalStateException("this thread only for accepting new connections, event: "+event);
+                            throw new IllegalStateException("this thread only for accepting new connections, event: " + event);
                     }
                 }
             } catch (Exception e) {
@@ -185,15 +185,19 @@ public class EpollCore<T extends Connection> extends Thread {
 
     void startWriting(Connection connection) {
         if (connection.isAlive() && !connection.isWritingMode()) {
-            startWriting(scope, connection.fd);
-            connection.setWritingMode(true);
+            if (!startWriting(scope, connection.fd))
+                connection.close();
+            else
+                connection.setWritingMode(true);
         }
     }
 
     void stopWriting(Connection connection) {
         if (connection.isAlive() && connection.isWritingMode()) {
-            stopWriting(scope, connection.fd);
-            connection.setWritingMode(false);
+            if (!stopWriting(scope, connection.fd))
+                connection.close();
+            else
+                connection.setWritingMode(false);
         }
     }
 
@@ -252,7 +256,7 @@ public class EpollCore<T extends Connection> extends Thread {
 
     native void close(int fd);
 
-    native void attach(long scope, int fd);
+    native boolean attach(long scope, int fd);
 
     private native long init(int maxEvents, ByteBuffer events);
 
@@ -266,9 +270,9 @@ public class EpollCore<T extends Connection> extends Thread {
 
     private native int connect(long scope, String host, int port);
 
-    private native void stopWriting(long scope, int fd);
+    private native boolean stopWriting(long scope, int fd);
 
-    private native void startWriting(long scope, int fd);
+    private native boolean startWriting(long scope, int fd);
 
     private native int read(int fd, long bbPointer, int off, int len) throws IOException;
 

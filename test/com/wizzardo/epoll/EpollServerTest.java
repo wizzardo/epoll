@@ -1,6 +1,7 @@
 package com.wizzardo.epoll;
 
 
+import com.wizzardo.tools.security.MD5;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -8,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -81,7 +83,7 @@ public class EpollServerTest {
         server.stopEpoll();
     }
 
-    @Test
+    //    @Test
     public void httpTest() throws InterruptedException {
         int port = 8084;
         EpollServer server = new EpollServer(port) {
@@ -189,8 +191,8 @@ public class EpollServerTest {
     @Test
     public void hostBindTest() throws InterruptedException {
         int port = 9090;
-//        String host = "192.168.0.131";
-        String host = "192.168.1.144";
+        String host = "192.168.0.131";
+//        String host = "192.168.1.144";
         EpollServer server = new EpollServer(host, port) {
             @Override
             protected IOThread createIOThread() {
@@ -236,6 +238,66 @@ public class EpollServerTest {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        server.stopEpoll();
+    }
+
+    @Test
+    public void testWriteEvents() throws IOException, InterruptedException {
+        int port = 9090;
+        String host = "localhost";
+
+        final byte[] data = new byte[10 * 1024 * 1024];
+        new Random().nextBytes(data);
+        String md5 = MD5.getMD5AsString(data);
+
+        EpollServer server = new EpollServer(host, port) {
+            @Override
+            protected IOThread createIOThread() {
+                return new IOThread() {
+
+                    @Override
+                    public void onConnect(Connection connection) {
+                        connection.write(data);
+                    }
+                };
+            }
+
+            @Override
+            protected Connection createConnection(int fd, int ip, int port) {
+                return new Connection(fd, ip, port){
+                    @Override
+                    protected void enableOnWriteEvent() {
+                        super.enableOnWriteEvent();
+                        System.out.println("enableOnWriteEvent");
+                    }
+
+                    @Override
+                    protected void disableOnWriteEvent() {
+                        super.disableOnWriteEvent();
+                        System.out.println("disableOnWriteEvent");
+                    }
+                };
+            }
+        };
+
+        server.start();
+
+        byte[] receive = new byte[10 * 1024 * 1024];
+        int offset = 0;
+        int r;
+        Socket socket = new Socket(host, port);
+        InputStream in = socket.getInputStream();
+        Thread.sleep(1000);
+        while ((r = in.read(receive, offset, receive.length - offset)) != -1) {
+            offset += r;
+//            System.out.println("read: "+r+"\tremaining: "+(receive.length - offset));
+
+            if (receive.length - offset == 0)
+                break;
+        }
+        Assert.assertEquals(md5, MD5.getMD5AsString(receive));
+        Assert.assertEquals(0, in.available());
+        socket.close();
         server.stopEpoll();
     }
 }

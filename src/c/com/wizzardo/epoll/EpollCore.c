@@ -196,7 +196,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEn
     return j;
 }
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env, jobject obj, jlong scopePointer, jint infd) {
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env, jobject obj, jlong scopePointer, jint infd) {
     int s;
     struct epoll_event e;
     struct Scope *scope = (struct Scope *)scopePointer;
@@ -208,8 +208,9 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env, job
     if (s == -1) {
         throwException(env, strerror(errno), NULL);
         perror("epoll_ctl on attach");
-        abort();
+        return JNI_FALSE;
     }
+    return JNI_TRUE;
 }
 
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *env, jobject obj, jlong scopePointer, jint timeout) {
@@ -272,7 +273,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
     return j;
 }
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
 {
     int s;
     struct epoll_event e;
@@ -286,11 +287,12 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting(JNIEnv *en
     {
         throwException(env, strerror(errno), NULL);
         perror("epoll_ctl on startWriting");
-        abort();
+        return JNI_FALSE;
     }
+    return JNI_TRUE;
 }
 
-JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
 {
     int s;
     struct epoll_event e;
@@ -304,8 +306,9 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting(JNIEnv *env
     {
         throwException(env, strerror(errno), NULL);
         perror("epoll_ctl on stopWriting");
-        abort();
+        return JNI_FALSE;
     }
+    return JNI_TRUE;
 }
 
 
