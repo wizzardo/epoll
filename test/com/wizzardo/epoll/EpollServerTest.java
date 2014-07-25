@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -52,11 +53,8 @@ public class EpollServerTest {
                     public void onRead(Connection connection) {
                         try {
                             byte[] b = new byte[1024];
-                            int r = read(connection, b, 0, b.length);
-                            int w = 0;
-                            while (w < r) {
-                                w += write(connection, b, w, r - w);
-                            }
+                            int r = connection.read(b, 0, b.length);
+                            connection.write(b, 0, r);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -79,6 +77,7 @@ public class EpollServerTest {
             Assert.assertEquals("hello world!", new String(b, 0, r));
         } catch (IOException e) {
             e.printStackTrace();
+            assert e == null;
         }
         server.stopEpoll();
     }
@@ -100,12 +99,13 @@ public class EpollServerTest {
                     @Override
                     public void onRead(Connection connection) {
                         try {
-                            int r = read(connection, b, 0, b.length);
+                            int r = connection.read(b, 0, b.length);
 //                    System.out.println(new String(b,0,r));
                             connection.write(response);
 //                    close(connection);
                         } catch (IOException e) {
                             e.printStackTrace();
+                            assert e == null;
                         }
                     }
                 };
@@ -122,7 +122,7 @@ public class EpollServerTest {
     @Test
     public void maxEventsTest() throws InterruptedException {
         final int port = 9092;
-        EpollServer server = new EpollServer(null, port, 2) {
+        EpollServer server = new EpollServer(null, port, 200) {
             @Override
             protected IOThread createIOThread() {
                 return new IOThread() {
@@ -130,12 +130,9 @@ public class EpollServerTest {
                     @Override
                     public void onRead(Connection connection) {
                         try {
-                            byte[] b = new byte[1024];
-                            int r = read(connection, b, 0, b.length);
-                            int w = 0;
-                            while (w < r) {
-                                w += write(connection, b, w, r - w);
-                            }
+                            byte[] b = new byte[32];
+                            int r = connection.read(b, 0, b.length);
+                            connection.write(b, 0, r);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -149,10 +146,10 @@ public class EpollServerTest {
         final AtomicLong total = new AtomicLong(0);
         long time = System.currentTimeMillis();
 
-        int threads = 512;
-        final int n = 1000;
+        int threads = 10;
+        final int n = 100;
         final CountDownLatch latch = new CountDownLatch(threads);
-
+        final AtomicInteger counter = new AtomicInteger();
 
         for (int j = 0; j < threads; j++) {
             new Thread(new Runnable() {
@@ -171,6 +168,7 @@ public class EpollServerTest {
 
                             Assert.assertEquals("hello world!", new String(b, 0, r));
                         }
+                        counter.incrementAndGet();
                     } catch (IOException e) {
                         e.printStackTrace();
                     } finally {
@@ -181,6 +179,7 @@ public class EpollServerTest {
 
         }
         latch.await();
+        Assert.assertEquals(threads, counter.get());
         System.out.println("total bytes were sent: " + total.get() * 2);
         time = System.currentTimeMillis() - time;
         System.out.println("for " + time + "ms");
@@ -202,11 +201,8 @@ public class EpollServerTest {
                     public void onRead(Connection connection) {
                         try {
                             byte[] b = new byte[1024];
-                            int r = read(connection, b, 0, b.length);
-                            int w = 0;
-                            while (w < r) {
-                                w += write(connection, b, w, r - w);
-                            }
+                            int r = connection.read(b, 0, b.length);
+                            connection.write(b, 0, r);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -264,7 +260,7 @@ public class EpollServerTest {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(fd, ip, port){
+                return new Connection(fd, ip, port) {
                     @Override
                     protected void enableOnWriteEvent() {
                         super.enableOnWriteEvent();

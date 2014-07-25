@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
  * @author: wizzardo
  * Date: 7/25/14
  */
-public class ReadableBuilder implements ReadableData {
+public class ReadableBuilder extends ReadableData {
     private ReadableByteArray[] parts = new ReadableByteArray[20];
     private int partsCount = 0;
     private int position = 0;

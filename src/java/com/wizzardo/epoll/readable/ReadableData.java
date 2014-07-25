@@ -1,21 +1,50 @@
 package com.wizzardo.epoll.readable;
 
+import com.wizzardo.epoll.ByteBufferWrapper;
+
 import java.nio.ByteBuffer;
 
 /**
  * @author: wizzardo
  * Date: 2/27/14
  */
-public interface ReadableData {
-    public int read(ByteBuffer byteBuffer);
+public abstract class ReadableData {
 
-    public void unread(int i);
+    private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
+        @Override
+        protected ByteBufferWrapper initialValue() {
+            return new ByteBufferWrapper(ByteBuffer.allocateDirect(50 * 1024));
+        }
 
-    public boolean isComplete();
+        @Override
+        public ByteBufferWrapper get() {
+            ByteBufferWrapper bb = super.get();
+            bb.clear();
+            return bb;
+        }
+    };
 
-    public long complete();
+    public ByteBufferWrapper getByteBuffer() {
+        return byteBuffer.get();
+    }
 
-    public long length();
+    public static ByteBufferWrapper getThreadLocalByteBuffer() {
+        return byteBuffer.get();
+    }
 
-    public long remains();
+    public int getByteBufferOffset() {
+        return 0;
+    }
+
+    public abstract int read(ByteBuffer byteBuffer);
+
+    public abstract void unread(int i);
+
+    public abstract boolean isComplete();
+
+    public abstract long complete();
+
+    public abstract long length();
+
+    public abstract long remains();
 }

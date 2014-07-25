@@ -29,20 +29,6 @@ public class EpollCore<T extends Connection> extends Thread {
     private int ioThreadsCount = 8;
     long ttl = 30000;
 
-    private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
-        @Override
-        protected ByteBufferWrapper initialValue() {
-            return new ByteBufferWrapper(ByteBuffer.allocateDirect(50 * 1024));
-        }
-
-        @Override
-        public ByteBufferWrapper get() {
-            ByteBufferWrapper bb = super.get();
-            bb.buffer.clear();
-            return bb;
-        }
-    };
-
     private IOThread[] ioThreads;
     private Comparator<IOThread> ioThreadComparator = new Comparator<IOThread>() {
         @Override
@@ -209,35 +195,22 @@ public class EpollCore<T extends Connection> extends Thread {
     }
 
     public ByteBuffer read(T connection, int length) throws IOException {
-        ByteBufferWrapper bb = byteBuffer.get();
+        ByteBufferWrapper bb = ReadableData.getThreadLocalByteBuffer();
         int l = Math.min(length, bb.limit());
         int r = connection.isAlive() ? read(connection.fd, bb.address, 0, l) : -1;
         if (r > 0)
             bb.position(r);
         bb.flip();
-        return bb.buffer;
-    }
-
-    public int write(T connection, byte[] b, int offset, int length) throws IOException {
-        int written = -1;
-        if (connection.isAlive()) {
-            ByteBufferWrapper bb = byteBuffer.get();
-            int l = Math.min(length, bb.limit());
-            bb.put(b, offset, l);
-            synchronized (connection) {
-                if (connection.isAlive())
-                    written = write(connection.fd, bb.address, 0, l);
-            }
-        }
-        return written;
+        return bb.buffer();
     }
 
     int write(T connection, ReadableData readable) throws IOException {
-        ByteBufferWrapper bb = byteBuffer.get();
-        int r = readable.read(bb.buffer);
+        ByteBufferWrapper bb = readable.getByteBuffer();
+        int offset = readable.getByteBufferOffset();
+        int r = readable.read(bb.buffer());
         int written = -1;
         if (connection.isAlive()) {
-            written = write(connection.fd, bb.address, 0, r);
+            written = write(connection.fd, bb.address, offset, r);
             if (written != r)
                 readable.unread(r - written);
         }

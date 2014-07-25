@@ -1,33 +1,53 @@
 package com.wizzardo.epoll.readable;
 
-import java.lang.*;
+import com.wizzardo.epoll.ByteBufferWrapper;
+
 import java.nio.ByteBuffer;
 
 /**
  * @author: wizzardo
- * Date: 2/27/14
+ * Date: 7/25/14
  */
-public class ReadableByteArray extends ReadableData {
-    protected byte[] bytes;
+public class ReadableByteBuffer extends ReadableData {
+
+    protected ByteBufferWrapper buffer;
     protected int offset, length, position;
 
-    public ReadableByteArray(byte[] bytes) {
-        this(bytes, 0, bytes.length);
+
+    public ReadableByteBuffer(ByteBufferWrapper bufferWrapper) {
+        this(bufferWrapper, 0, bufferWrapper.capacity());
     }
 
-    public ReadableByteArray(byte[] bytes, int offset, int length) {
-        this.bytes = bytes;
+    public ReadableByteBuffer(ByteBufferWrapper buffer, int offset, int length) {
+        this.buffer = buffer;
         this.offset = offset;
         this.length = length;
         position = offset;
     }
 
+    public ReadableByteBuffer(ByteBuffer buffer) {
+        this(buffer, 0, buffer.capacity());
+    }
+
+    public ReadableByteBuffer(ByteBuffer buffer, int offset, int length) {
+        this(new ByteBufferWrapper(buffer), offset, length);
+    }
+
+    @Override
+    public ByteBufferWrapper getByteBuffer() {
+        return buffer;
+    }
+
     @Override
     public int read(ByteBuffer byteBuffer) {
-        int r = Math.min(byteBuffer.remaining(), length + offset - position);
-        byteBuffer.put(bytes, position, r);
-        position += r;
+        int r = length - (position - offset);
+        position = offset + length;
         return r;
+    }
+
+    @Override
+    public int getByteBufferOffset() {
+        return offset + position;
     }
 
     @Override
