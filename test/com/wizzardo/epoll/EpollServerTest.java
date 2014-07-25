@@ -87,8 +87,9 @@ public class EpollServerTest {
         int port = 8084;
         EpollServer server = new EpollServer(port) {
 
-            byte[] response = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
-//            byte[] response = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
+            byte[] data = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
+//                        byte[] response = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
+//            ReadableByteBuffer response = new ReadableByteBuffer(new ByteBufferWrapper(data));
 
             @Override
             protected IOThread createIOThread() {
@@ -101,7 +102,8 @@ public class EpollServerTest {
                         try {
                             int r = connection.read(b, 0, b.length);
 //                    System.out.println(new String(b,0,r));
-                            connection.write(response);
+//                            connection.write(response.copy());
+                            connection.write(data);
 //                    close(connection);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -111,6 +113,7 @@ public class EpollServerTest {
                 };
             }
         };
+        server.setIoThreadsCount(3);
 
         server.start();
 
@@ -122,7 +125,9 @@ public class EpollServerTest {
     @Test
     public void maxEventsTest() throws InterruptedException {
         final int port = 9092;
+        final AtomicInteger connections = new AtomicInteger();
         EpollServer server = new EpollServer(null, port, 200) {
+
             @Override
             protected IOThread createIOThread() {
                 return new IOThread() {
@@ -137,6 +142,16 @@ public class EpollServerTest {
                             e.printStackTrace();
                         }
                     }
+
+                    @Override
+                    public void onConnect(Connection connection) {
+                        System.out.println("onConnect " + connections.incrementAndGet());
+                    }
+
+                    @Override
+                    public void onDisconnect(Connection connection) {
+                        System.out.println("onDisconnect " + connections.decrementAndGet());
+                    }
                 };
             }
         };
@@ -146,8 +161,8 @@ public class EpollServerTest {
         final AtomicLong total = new AtomicLong(0);
         long time = System.currentTimeMillis();
 
-        int threads = 10;
-        final int n = 100;
+        int threads = 100;
+        final int n = 10000;
         final CountDownLatch latch = new CountDownLatch(threads);
         final AtomicInteger counter = new AtomicInteger();
 
@@ -168,6 +183,7 @@ public class EpollServerTest {
 
                             Assert.assertEquals("hello world!", new String(b, 0, r));
                         }
+                        s.close();
                         counter.incrementAndGet();
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -176,10 +192,12 @@ public class EpollServerTest {
                     }
                 }
             }).start();
+            Thread.sleep(10);
 
         }
         latch.await();
         Assert.assertEquals(threads, counter.get());
+        Assert.assertEquals(0, connections.get());
         System.out.println("total bytes were sent: " + total.get() * 2);
         time = System.currentTimeMillis() - time;
         System.out.println("for " + time + "ms");

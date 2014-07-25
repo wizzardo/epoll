@@ -74,7 +74,12 @@ public class ReadableByteBuffer extends ReadableData {
         return length;
     }
 
+    @Override
     public long remains() {
         return length + offset - position;
+    }
+
+    public ReadableByteBuffer copy() {
+        return new ReadableByteBuffer(buffer, offset, length);
     }
 }

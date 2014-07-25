@@ -89,7 +89,7 @@ public class ReadableBuilder extends ReadableData {
     @Override
     public long length() {
         long l = 0;
-        for (int i = 0; i <= partsCount; i++) {
+        for (int i = 0; i < partsCount; i++) {
             l += parts[i].length();
         }
         return l;
