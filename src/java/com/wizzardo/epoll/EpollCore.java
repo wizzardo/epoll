@@ -169,21 +169,15 @@ public class EpollCore<T extends Connection> extends Thread {
         return waitForEvents(scope, -1);
     }
 
-    void startWriting(Connection connection) {
-        if (connection.isAlive() && !connection.isWritingMode()) {
-            if (!startWriting(scope, connection.fd))
-                connection.close();
-            else
-                connection.setWritingMode(true);
-        }
-    }
-
-    void stopWriting(Connection connection) {
-        if (connection.isAlive() && connection.isWritingMode()) {
-            if (!stopWriting(scope, connection.fd))
-                connection.close();
-            else
-                connection.setWritingMode(false);
+    void mod(Connection connection, int mode) {
+        if (connection.isAlive() && connection.getMode() != mode) {
+            synchronized (connection) {
+                if (connection.isAlive() && connection.getMode() != mode)
+                    if (!mod(scope, connection.fd, mode))
+                        connection.close();
+                    else
+                        connection.setMode(mode);
+            }
         }
     }
 
@@ -243,9 +237,7 @@ public class EpollCore<T extends Connection> extends Thread {
 
     private native int connect(long scope, String host, int port);
 
-    private native boolean stopWriting(long scope, int fd);
-
-    private native boolean startWriting(long scope, int fd);
+    private native boolean mod(long scope, int fd, int mode);
 
     private native int read(int fd, long bbPointer, int off, int len) throws IOException;
 

@@ -13,14 +13,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Date: 1/6/14
  */
 public class Connection implements Cloneable {
+    protected static final int EPOLLIN = 0x001;
+    protected static final int EPOLLOUT = 0x004;
+
     protected final int fd;
     protected final int ip, port;
     protected volatile Queue<ReadableData> sending;
     protected volatile IOThread epoll;
+    private volatile int mode = 1;
+    private volatile boolean alive = true;
     private String ipString;
     private Long lastEvent;
-    private volatile boolean writingMode = false;
-    private volatile boolean alive = true;
 
     public Connection(int fd, int ip, int port) {
         this.fd = fd;
@@ -126,11 +129,31 @@ public class Connection implements Cloneable {
     }
 
     protected void enableOnWriteEvent() {
-        epoll.startWriting(this);
+        if ((mode & EPOLLIN) != 0)
+            epoll.mod(this, EPOLLIN | EPOLLOUT);
+        else
+            epoll.mod(this, EPOLLOUT);
     }
 
     protected void disableOnWriteEvent() {
-        epoll.stopWriting(this);
+        if ((mode & EPOLLIN) != 0)
+            epoll.mod(this, EPOLLIN);
+        else
+            epoll.mod(this, 0);
+    }
+
+    protected void enableOnReadEvent() {
+        if ((mode & EPOLLOUT) != 0)
+            epoll.mod(this, EPOLLIN | EPOLLOUT);
+        else
+            epoll.mod(this, EPOLLIN);
+    }
+
+    protected void disableOnReadEvent() {
+        if ((mode & EPOLLOUT) != 0)
+            epoll.mod(this, EPOLLOUT);
+        else
+            epoll.mod(this, 0);
     }
 
     public void onWriteData(ReadableData readable, boolean hasMore) {
@@ -175,12 +198,12 @@ public class Connection implements Cloneable {
         return lastEvent.compareTo(now) <= 0;
     }
 
-    boolean isWritingMode() {
-        return writingMode;
+    void setMode(int mode) {
+        this.mode = mode;
     }
 
-    void setWritingMode(boolean enabled) {
-        writingMode = enabled;
+    int getMode(){
+        return mode;
     }
 
     public void setIOThread(IOThread IOThread) {

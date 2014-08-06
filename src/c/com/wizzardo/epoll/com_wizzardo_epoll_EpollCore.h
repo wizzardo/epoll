@@ -48,21 +48,8 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopListening
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents
   (JNIEnv *, jobject, jlong, jint);
 
-/*
- * Class:     com_wizzardo_epoll_EpollCore
- * Method:    startWriting
- * Signature: (JI)V
- */
-JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting
-  (JNIEnv *, jobject, jlong, jint);
-
-/*
- * Class:     com_wizzardo_epoll_EpollCore
- * Method:    stopWriting
- * Signature: (JI)V
- */
-JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting
-  (JNIEnv *, jobject, jlong, jint);
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_mod
+  (JNIEnv *, jobject, jlong, jint, jint);
 
 /*
  * Class:     com_wizzardo_epoll_EpollCore

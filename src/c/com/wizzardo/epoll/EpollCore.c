@@ -273,39 +273,19 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
     return j;
 }
 
-JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_startWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
-{
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_mod(JNIEnv *env, jobject obj, jlong scopePointer, jint fd, jint mod) {
     int s;
     struct epoll_event e;
     struct Scope *scope = (struct Scope *)scopePointer;
 
     e.data.fd = fd;
-    e.events = EPOLLIN | EPOLLET | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+    e.events = EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP | mod;
     errno = 0;
     s = epoll_ctl((*scope).efd, EPOLL_CTL_MOD, fd, &e);
     if (s == -1)
     {
         throwException(env, strerror(errno), NULL);
-        perror("epoll_ctl on startWriting");
-        return JNI_FALSE;
-    }
-    return JNI_TRUE;
-}
-
-JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopWriting(JNIEnv *env, jobject obj, jlong scopePointer, jint fd)
-{
-    int s;
-    struct epoll_event e;
-    struct Scope *scope = (struct Scope *)scopePointer;
-
-    e.data.fd = fd;
-    e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-    errno = 0;
-    s = epoll_ctl((*scope).efd, EPOLL_CTL_MOD, fd, &e);
-    if (s == -1)
-    {
-        throwException(env, strerror(errno), NULL);
-        perror("epoll_ctl on stopWriting");
+        perror("epoll_ctl on mod");
         return JNI_FALSE;
     }
     return JNI_TRUE;
