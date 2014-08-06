@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
  * Date: 7/25/14
  */
 public class ReadableBuilder extends ReadableData {
-    private ReadableByteArray[] parts = new ReadableByteArray[20];
+    private ReadableData[] parts = new ReadableData[20];
     private int partsCount = 0;
     private int position = 0;
 
@@ -37,8 +37,18 @@ public class ReadableBuilder extends ReadableData {
         return this;
     }
 
+    public ReadableBuilder append(ReadableData readableData) {
+        if (partsCount + 1 == parts.length)
+            increaseSize();
+
+        parts[partsCount] = readableData;
+        partsCount++;
+
+        return this;
+    }
+
     private void increaseSize() {
-        ReadableByteArray[] temp = new ReadableByteArray[partsCount * 3 / 2];
+        ReadableData[] temp = new ReadableData[partsCount * 3 / 2];
         System.arraycopy(parts, 0, temp, 0, partsCount);
         parts = temp;
     }
@@ -59,7 +69,7 @@ public class ReadableBuilder extends ReadableData {
     @Override
     public void unread(int i) {
         while (i > 0) {
-            ReadableByteArray part = parts[position];
+            ReadableData part = parts[position];
             int unread = (int) Math.min(i, part.complete());
             parts[position].unread(unread);
             i -= unread;
@@ -77,7 +87,7 @@ public class ReadableBuilder extends ReadableData {
     public long complete() {
         long l = 0;
         for (int i = 0; i <= position; i++) {
-            ReadableByteArray part = parts[i];
+            ReadableData part = parts[i];
             if (parts[i].isComplete())
                 l += parts[i].length();
             else
@@ -106,14 +116,14 @@ public class ReadableBuilder extends ReadableData {
         return l;
     }
 
-    public ReadableByteArray toReadableByteArray() {
-        byte[] data = new byte[(int) length()];
-        int offset = 0;
-        for (int i = 0; i < partsCount; i++) {
-            ReadableByteArray part = parts[i];
-            System.arraycopy(part.bytes, part.offset, data, offset, part.length);
-            offset += part.length;
-        }
-        return new ReadableByteArray(data);
-    }
+//    public ReadableByteArray toReadableByteArray() {
+//        byte[] data = new byte[(int) length()];
+//        int offset = 0;
+//        for (int i = 0; i < partsCount; i++) {
+//            ReadableData part = parts[i];
+//            System.arraycopy(part.bytes, part.offset, data, offset, part.length);
+//            offset += part.length;
+//        }
+//        return new ReadableByteArray(data);
+//    }
 }
