@@ -1,6 +1,8 @@
 package com.wizzardo.epoll;
 
 
+import com.wizzardo.tools.http.HttpClient;
+import com.wizzardo.tools.misc.Stopwatch;
 import com.wizzardo.tools.security.MD5;
 import org.junit.Assert;
 import org.junit.Test;
@@ -8,7 +10,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.Socket;
+import java.net.*;
+import java.util.Enumeration;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -205,10 +208,26 @@ public class EpollServerTest {
         server.stopEpoll();
     }
 
+    private String getLocalIp() throws UnknownHostException, SocketException {
+        System.out.println("Your Host addr: " + InetAddress.getLocalHost().getHostAddress());  // often returns "127.0.0.1"
+        Enumeration<NetworkInterface> n = NetworkInterface.getNetworkInterfaces();
+        for (; n.hasMoreElements(); ) {
+            NetworkInterface e = n.nextElement();
+
+            Enumeration<InetAddress> a = e.getInetAddresses();
+            for (; a.hasMoreElements(); ) {
+                InetAddress addr = a.nextElement();
+                if (addr.getAddress().length == 4 && !addr.getHostAddress().startsWith("127"))
+                    return addr.getHostAddress();
+            }
+        }
+        return null;
+    }
+
     @Test
-    public void hostBindTest() throws InterruptedException {
+    public void hostBindTest() throws InterruptedException, UnknownHostException, SocketException {
         int port = 9090;
-        String host = "192.168.0.131";
+        String host = getLocalIp();
 //        String host = "192.168.1.144";
         EpollServer server = new EpollServer(host, port) {
             @Override
@@ -313,5 +332,62 @@ public class EpollServerTest {
         Assert.assertEquals(0, in.available());
         socket.close();
         server.stopEpoll();
+    }
+
+    @Test
+    public void testConnects() {
+        int port = 9090;
+        EpollServer server = new EpollServer(port) {
+
+            byte[] data = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 2\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nok".getBytes();
+
+            @Override
+            protected IOThread createIOThread() {
+                return new IOThread() {
+
+                    byte[] b = new byte[1024];
+
+                    @Override
+                    public void onRead(Connection connection) {
+                        try {
+                            int r = connection.read(b, 0, b.length);
+//                    System.out.println(new String(b,0,r));
+//                            connection.write(response.copy());
+                            connection.write(data);
+                            close(connection);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            assert e == null;
+                        }
+                    }
+                };
+            }
+        };
+        server.setIoThreadsCount(4);
+        server.start();
+
+
+        int i = 0;
+        int n = 10000;
+        Stopwatch stopwatch = new Stopwatch("time");
+        try {
+            while (true) {
+//                Assert.assertEquals("ok", HttpClient.createRequest("http://localhost:8080")
+                Assert.assertEquals("ok", HttpClient.createRequest("http://localhost:9090")
+                        .header("Connection", "Close")
+                        .get().asString());
+                i++;
+                if (i == n)
+                    break;
+            }
+        } catch (Exception e) {
+            System.out.println(i);
+            e.printStackTrace();
+        }
+        server.stopEpoll();
+
+        assert i == n;
+        System.out.println(stopwatch);
+
     }
 }

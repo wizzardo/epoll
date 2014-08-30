@@ -4,6 +4,7 @@ import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.wizzardo.epoll.Utils.readInt;
@@ -15,7 +16,8 @@ import static com.wizzardo.epoll.Utils.readInt;
 public class IOThread<T extends Connection> extends EpollCore<T> {
     private static AtomicInteger number = new AtomicInteger();
 
-    private T[] connections;
+    private T[] connections = (T[]) new Connection[0];
+    private Map<Integer, T> newConnections = new ConcurrentHashMap<Integer, T>();
     private LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
     private AtomicInteger connectionsCounter = new AtomicInteger();
 
@@ -101,8 +103,14 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         }
     }
 
-    private T getConnection(int fd) {
-        return connections[fd];
+    protected T getConnection(int fd) {
+        T t;
+        if (fd >= connections.length || (t = connections[fd]) == null) {
+            t = newConnections.remove(fd);
+            if (t != null)
+                putIntoConnections(t);
+        }
+        return t;
     }
 
     private T deleteConnection(int fd) {
@@ -111,22 +119,27 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         return connection;
     }
 
-    protected void putConnection(T connection, Long eventTime) {
+    protected void putIntoConnections(T connection) {
         if (connections == null || connections.length <= connection.fd) {
             T[] array = (T[]) Array.newInstance(connection.getClass(), connection.fd * 3 / 2);
             if (connections != null)
                 System.arraycopy(connections, 0, array, 0, connections.length);
             connections = array;
         }
+        connections[connection.fd] = connection;
+    }
 
+    protected void putConnection(T connection, Long eventTime) {
+        newConnections.put(connection.fd, connection);
+        connection.setIOThread(this);
+        connection.setLastEvent(eventTime);
         if (attach(scope, connection.fd)) {
-            connection.setIOThread(this);
-            connections[connection.fd] = connection;
-            connectionsCounter.incrementAndGet();
-            connection.setLastEvent(eventTime);
             onConnect(connection);
-        } else
+            connectionsCounter.incrementAndGet();
+        } else {
+            newConnections.remove(connection.fd);
             close(connection.fd);
+        }
     }
 
     public void close(T connection) {
