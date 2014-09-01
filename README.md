@@ -1,7 +1,7 @@
 Epoll
 =========
 
-Event-based socket server, that uses [epoll]
+Event-based socket server, which uses [epoll]
 
 ```java
         EpollServer server = new EpollServer(8080) {
@@ -51,5 +51,10 @@ gcc -m32 -shared -fpic -o ../../../../../libepoll-core_x32.so -I $JAVA_HOME/incl
 gcc      -shared -fpic -o ../../../../../libepoll-core_x64.so -I $JAVA_HOME/include/ -I $JAVA_HOME/include/linux/ EpollCore.c
 ```
 
+Download
+=========
+[bintray]
+
 
 [epoll]:http://en.wikipedia.org/wiki/Epoll
+[bintray]:https://bintray.com/wizzardo/maven/epoll/
