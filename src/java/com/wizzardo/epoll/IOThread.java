@@ -31,27 +31,26 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
 //        System.out.println("start new ioThread");
 
         while (running) {
-            try {
-                this.events.position(0);
-                Long now = System.nanoTime() * 1000;
-                int r = waitForEvents(500);
+            this.events.position(0);
+            Long now = System.nanoTime() * 1000;
+            int r = waitForEvents(500);
 //                System.out.println("events length: "+r);
-                this.events.limit(r);
-                this.events.get(events, 0, r);
-                int i = 0;
-//                eventCounter.addAndGet(r / 5);
-                while (i < r) {
-                    int event = events[i];
-                    i++;
-                    int fd = readInt(events, i);
+            this.events.limit(r);
+            this.events.get(events, 0, r);
+            int i = 0;
+            while (i < r) {
+                int event = events[i];
+                i++;
+                int fd = readInt(events, i);
 //                    System.out.println("event on fd " + fd + ": " + event);
-                    i += 4;
-                    T connection = getConnection(fd);
-                    if (connection == null) {
-                        close(fd);
-                        continue;
-                    }
+                i += 4;
+                T connection = getConnection(fd);
+                if (connection == null) {
+                    close(fd);
+                    continue;
+                }
 
+                try {
                     switch (event) {
                         case 1: {
                             onRead(connection);
@@ -68,18 +67,17 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                         default:
                             throw new IllegalStateException("this thread only for read/write/close events, event: " + event);
                     }
-
-                    Long key = connection.setLastEvent(now);
-                    timeouts.put(now++, connection);
-                    if (key != null)
-                        timeouts.remove(key);
+                } catch (Exception e) {
+                    onError(connection, e);
                 }
 
-                handleTimeOuts(now);
-            } catch (Exception e) {
-                e.printStackTrace();
+                Long key = connection.setLastEvent(now);
+                timeouts.put(now++, connection);
+                if (key != null)
+                    timeouts.remove(key);
             }
 
+            handleTimeOuts(now);
         }
     }
 
@@ -134,7 +132,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connection.setIOThread(this);
         connection.setLastEvent(eventTime);
         if (attach(scope, connection.fd)) {
-            onConnect(connection);
+            safeOnConnect(connection);
             connectionsCounter.incrementAndGet();
         } else {
             newConnections.remove(connection.fd);
@@ -152,6 +150,18 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
 
     public int getConnectionsCount() {
         return connectionsCounter.get();
+    }
+
+    private void safeOnConnect(T connection) {
+        try {
+            onConnect(connection);
+        } catch (Exception e) {
+            onError(connection, e);
+        }
+    }
+
+    public void onError(T connection, Exception e) {
+        e.printStackTrace();
     }
 
     public void onRead(T connection) {
