@@ -14,15 +14,17 @@ import static com.wizzardo.epoll.Utils.readInt;
  * Date: 6/25/14
  */
 public class IOThread<T extends Connection> extends EpollCore<T> {
-    private static AtomicInteger number = new AtomicInteger();
-
+    private final int number;
+    private final int divider;
     private T[] connections = (T[]) new Connection[0];
     private Map<Integer, T> newConnections = new ConcurrentHashMap<Integer, T>();
     private LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
     private AtomicInteger connectionsCounter = new AtomicInteger();
 
-    public IOThread() {
-        setName("IOThread-" + number.incrementAndGet());
+    public IOThread(int number, int divider) {
+        this.number = number;
+        this.divider = divider;
+        setName("IOThread-" + number);
     }
 
     @Override
@@ -103,7 +105,8 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
 
     protected T getConnection(int fd) {
         T t;
-        if (fd >= connections.length || (t = connections[fd]) == null) {
+        int index = fd / divider;
+        if (index >= connections.length || (t = connections[index]) == null) {
             t = newConnections.remove(fd);
             if (t != null)
                 putIntoConnections(t);
@@ -112,19 +115,21 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     private T deleteConnection(int fd) {
-        T connection = connections[fd];
-        connections[fd] = null;
+        int index = fd / divider;
+        T connection = connections[index];
+        connections[index] = null;
         return connection;
     }
 
     protected void putIntoConnections(T connection) {
-        if (connections == null || connections.length <= connection.fd) {
-            T[] array = (T[]) Array.newInstance(connection.getClass(), connection.fd * 3 / 2);
+        int index = connection.fd / divider;
+        if (connections.length <= index) {
+            T[] array = (T[]) Array.newInstance(connection.getClass(), index * 3 / 2);
             if (connections != null)
                 System.arraycopy(connections, 0, array, 0, connections.length);
             connections = array;
         }
-        connections[connection.fd] = connection;
+        connections[index] = connection;
     }
 
     protected void putConnection(T connection, Long eventTime) {

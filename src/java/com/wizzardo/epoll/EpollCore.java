@@ -6,8 +6,6 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.regex.Pattern;
 
 import static com.wizzardo.epoll.Utils.readInt;
@@ -30,14 +28,6 @@ public class EpollCore<T extends Connection> extends Thread {
     long ttl = 30000;
 
     private IOThread[] ioThreads;
-    private Comparator<IOThread> ioThreadComparator = new Comparator<IOThread>() {
-        @Override
-        public int compare(IOThread o1, IOThread o2) {
-            int i1 = o1.getConnectionsCount();
-            int i2 = o2.getConnectionsCount();
-            return i1 > i2 ? 1 : i1 < i2 ? -1 : 0;
-        }
-    };
 
     static {
         try {
@@ -67,7 +57,7 @@ public class EpollCore<T extends Connection> extends Thread {
         System.out.println("io threads count: " + ioThreadsCount);
         ioThreads = new IOThread[ioThreadsCount];
         for (int i = 0; i < ioThreadsCount; i++) {
-            ioThreads[i] = createIOThread();
+            ioThreads[i] = createIOThread(i, ioThreadsCount);
             ioThreads[i].setTTL(ttl);
             ioThreads[i].start();
         }
@@ -134,12 +124,7 @@ public class EpollCore<T extends Connection> extends Thread {
     }
 
     private void putConnection(T connection, Long eventTime) {
-        Arrays.sort(ioThreads, ioThreadComparator);
-        ioThreads[0].putConnection(connection, eventTime);
-//        for (int i = 0; i < ioThreadsCount; i++) {
-//            System.out.print(ioThreads[i].getConnectionsCount() + " ");
-//        }
-//        System.out.println();
+        ioThreads[connection.fd % ioThreadsCount].putConnection(connection, eventTime);
     }
 
     public T connect(String host, int port) throws UnknownHostException {
@@ -217,8 +202,8 @@ public class EpollCore<T extends Connection> extends Thread {
         return (T) new Connection(fd, ip, port);
     }
 
-    protected IOThread<T> createIOThread() {
-        return new IOThread<T>();
+    protected IOThread<T> createIOThread(int number, int divider) {
+        return new IOThread<T>(number, divider);
     }
 
     native void close(int fd);

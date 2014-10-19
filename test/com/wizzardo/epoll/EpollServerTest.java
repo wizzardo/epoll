@@ -50,8 +50,8 @@ public class EpollServerTest {
         int port = 9090;
         EpollServer server = new EpollServer(port) {
             @Override
-            protected IOThread createIOThread() {
-                return new IOThread() {
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
                     @Override
                     public void onRead(Connection connection) {
                         try {
@@ -95,8 +95,8 @@ public class EpollServerTest {
 //            ReadableByteBuffer response = new ReadableByteBuffer(new ByteBufferWrapper(data));
 
             @Override
-            protected IOThread createIOThread() {
-                return new IOThread() {
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
 
                     byte[] b = new byte[1024];
 
@@ -132,8 +132,8 @@ public class EpollServerTest {
         EpollServer server = new EpollServer(null, port, 200) {
 
             @Override
-            protected IOThread createIOThread() {
-                return new IOThread() {
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
 
                     @Override
                     public void onRead(Connection connection) {
@@ -231,8 +231,8 @@ public class EpollServerTest {
 //        String host = "192.168.1.144";
         EpollServer server = new EpollServer(host, port) {
             @Override
-            protected IOThread createIOThread() {
-                return new IOThread() {
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
 
                     @Override
                     public void onRead(Connection connection) {
@@ -285,8 +285,8 @@ public class EpollServerTest {
 
         EpollServer server = new EpollServer(host, port) {
             @Override
-            protected IOThread createIOThread() {
-                return new IOThread() {
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
 
                     @Override
                     public void onConnect(Connection connection) {
@@ -342,8 +342,8 @@ public class EpollServerTest {
             byte[] data = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 2\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nok".getBytes();
 
             @Override
-            protected IOThread createIOThread() {
-                return new IOThread() {
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
 
                     byte[] b = new byte[1024];
 

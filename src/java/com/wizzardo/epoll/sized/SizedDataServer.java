@@ -35,13 +35,17 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
     }
 
     @Override
-    protected IOThread<T> createIOThread() {
-        return new SizedIOThread();
+    protected IOThread createIOThread(int number, int divider) {
+        return new SizedIOThread(number, divider);
     }
 
     protected abstract void handleData(T connection, byte[] data);
 
     private class SizedIOThread extends IOThread<T> {
+
+        public SizedIOThread(int number, int divider) {
+            super(number, divider);
+        }
 
         @Override
         public void onRead(final T connection) {

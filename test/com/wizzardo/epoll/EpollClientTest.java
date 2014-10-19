@@ -1,7 +1,6 @@
 package com.wizzardo.epoll;
 
 import com.wizzardo.epoll.readable.ReadableByteArray;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -12,13 +11,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Date: 5/5/14
  */
 public class EpollClientTest {
-    @Test
+//    @Test
     public void simpleTest() throws UnknownHostException {
         EpollCore epoll = new EpollCore<Connection>() {
 
             @Override
-            protected IOThread<Connection> createIOThread() {
-                return new IOThread<Connection>() {
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
                     @Override
                     public void onRead(Connection connection) {
                         System.out.println("onRead " + connection);
@@ -62,7 +61,7 @@ public class EpollClientTest {
         }
     }
 
-//    @Test
+    //    @Test
     public void benchmark() throws IOException, InterruptedException {
 //        final byte[] request = ("GET /grails2_4/ HTTP/1.1\r\n" +
         final byte[] request = ("GET / HTTP/1.1\r\n" +
@@ -80,8 +79,8 @@ public class EpollClientTest {
             }
 
             @Override
-            protected IOThread<BenchmarkConnection> createIOThread() {
-                return new IOThread<BenchmarkConnection>() {
+            protected IOThread<BenchmarkConnection> createIOThread(int number, int divider) {
+                return new IOThread<BenchmarkConnection>(number, divider) {
                     @Override
                     public void onRead(BenchmarkConnection connection) {
 //                System.out.println("onRead " + connection);
