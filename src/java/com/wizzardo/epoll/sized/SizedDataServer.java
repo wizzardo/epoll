@@ -67,7 +67,11 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
                             connection.read(r.offset(), r.length());
                     }
                 } catch (IOException e) {
-                    connection.close();
+                    try {
+                        connection.close();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
                 }
             }
             if (r.isComplete()) {

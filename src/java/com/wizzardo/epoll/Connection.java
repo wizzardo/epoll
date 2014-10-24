@@ -3,6 +3,7 @@ package com.wizzardo.epoll;
 import com.wizzardo.epoll.readable.ReadableByteArray;
 import com.wizzardo.epoll.readable.ReadableData;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Queue;
@@ -12,7 +13,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author: wizzardo
  * Date: 1/6/14
  */
-public class Connection implements Cloneable {
+public class Connection implements Cloneable, Closeable {
     protected static final int EPOLLIN = 0x001;
     protected static final int EPOLLOUT = 0x004;
 
@@ -114,18 +115,26 @@ public class Connection implements Cloneable {
                         return;
                     }
 
+                    readable.close();
                     onWriteData(sending.poll(), !sending.isEmpty());
                 }
                 disableOnWriteEvent();
             } catch (Exception e) {
                 e.printStackTrace();
-                close();
+                try {
+                    close();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
             }
         }
     }
 
-    public void close() {
+    public void close() throws IOException {
         epoll.close(this);
+        if (sending != null)
+            for (ReadableData data : sending)
+                data.close();
     }
 
     protected void enableOnWriteEvent() {
@@ -202,7 +211,7 @@ public class Connection implements Cloneable {
         this.mode = mode;
     }
 
-    int getMode(){
+    int getMode() {
         return mode;
     }
 

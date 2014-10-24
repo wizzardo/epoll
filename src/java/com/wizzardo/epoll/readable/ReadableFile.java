@@ -39,6 +39,11 @@ public class ReadableFile extends ReadableData {
     }
 
     @Override
+    public void close() throws IOException {
+        randomAccessFile.close();
+    }
+
+    @Override
     public int read(ByteBuffer byteBuffer) {
         try {
             int limit = (int) (offset + length - position);

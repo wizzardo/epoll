@@ -159,7 +159,11 @@ public class EpollCore<T extends Connection> extends Thread {
             synchronized (connection) {
                 if (connection.isAlive() && connection.getMode() != mode)
                     if (!mod(scope, connection.fd, mode))
-                        connection.close();
+                        try {
+                            connection.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     else
                         connection.setMode(mode);
             }

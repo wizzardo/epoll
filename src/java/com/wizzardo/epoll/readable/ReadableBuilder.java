@@ -1,5 +1,6 @@
 package com.wizzardo.epoll.readable;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -114,6 +115,13 @@ public class ReadableBuilder extends ReadableData {
             l += parts[i].remains();
         }
         return l;
+    }
+
+    @Override
+    public void close() throws IOException {
+        for (int i = 0; i < partsCount; i++) {
+            parts[i].close();
+        }
     }
 
 //    public ReadableByteArray toReadableByteArray() {

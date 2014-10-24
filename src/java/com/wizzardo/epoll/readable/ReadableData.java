@@ -2,13 +2,15 @@ package com.wizzardo.epoll.readable;
 
 import com.wizzardo.epoll.ByteBufferWrapper;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
  * @author: wizzardo
  * Date: 2/27/14
  */
-public abstract class ReadableData {
+public abstract class ReadableData implements Closeable {
 
     private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
         @Override
@@ -25,7 +27,7 @@ public abstract class ReadableData {
     };
 
     public ByteBufferWrapper getByteBuffer() {
-        return byteBuffer.get();
+        return getThreadLocalByteBuffer();
     }
 
     public static ByteBufferWrapper getThreadLocalByteBuffer() {
@@ -34,6 +36,9 @@ public abstract class ReadableData {
 
     public int getByteBufferOffset() {
         return 0;
+    }
+
+    public void close() throws IOException {
     }
 
     public abstract int read(ByteBuffer byteBuffer);
