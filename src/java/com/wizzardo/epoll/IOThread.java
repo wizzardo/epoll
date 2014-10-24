@@ -124,9 +124,9 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     protected void putIntoConnections(T connection) {
         int index = connection.fd / divider;
         if (connections.length <= index) {
-            T[] array = (T[]) Array.newInstance(connection.getClass(), index * 3 / 2);
-            if (connections != null)
-                System.arraycopy(connections, 0, array, 0, connections.length);
+            int length = Math.max(index * 3 / 2, 16);
+            T[] array = (T[]) Array.newInstance(connection.getClass(), length);
+            System.arraycopy(connections, 0, array, 0, connections.length);
             connections = array;
         }
         connections[index] = connection;
