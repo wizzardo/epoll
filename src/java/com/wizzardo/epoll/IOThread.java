@@ -1,5 +1,6 @@
 package com.wizzardo.epoll;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -98,7 +99,11 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
             if (entry.getValue().isInvalid(eventTime)) {
                 connection = deleteConnection(entry.getValue().fd);
                 if (connection != null)
-                    close(connection);
+                    try {
+                        connection.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
             }
         }
     }
@@ -145,7 +150,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         }
     }
 
-    public void close(T connection) {
+    void close(T connection) {
         connection.setIsAlive(false);
         close(connection.fd);
         connectionsCounter.decrementAndGet();

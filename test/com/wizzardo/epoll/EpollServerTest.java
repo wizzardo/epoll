@@ -354,7 +354,7 @@ public class EpollServerTest {
 //                    System.out.println(new String(b,0,r));
 //                            connection.write(response.copy());
                             connection.write(data);
-                            close(connection);
+                            connection.close();
                         } catch (IOException e) {
                             e.printStackTrace();
                             assert e == null;
