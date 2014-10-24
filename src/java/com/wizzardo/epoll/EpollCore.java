@@ -107,6 +107,10 @@ public class EpollCore<T extends Connection> extends Thread {
     public void stopEpoll() {
         running = false;
         stopListening(scope);
+        try {
+            join();
+        } catch (InterruptedException ignored) {
+        }
     }
 
     private Long acceptConnections(byte[] buffer, Long eventTime) {
