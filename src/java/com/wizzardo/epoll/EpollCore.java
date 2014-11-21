@@ -191,18 +191,23 @@ public class EpollCore<T extends Connection> extends Thread {
         return bb.buffer();
     }
 
-    int write(T connection, ReadableData readable) throws IOException {
+    /*
+    * @return true if connection ready to write data
+    */
+    boolean write(T connection, ReadableData readable) throws IOException {
         ByteBufferWrapper bb = readable.getByteBuffer();
         int offset = readable.getByteBufferOffset();
         int r = readable.read(bb.buffer());
-        int written = -1;
-        if (connection.isAlive()) {
-            written = write(connection.fd, bb.address, offset, r);
-            if (written != r)
+        if (r > 0 && connection.isAlive()) {
+            int written = write(connection.fd, bb.address, offset, r);
+//            System.out.println("write: " + written + " to " + connection + "\t\tnow: " + connection.getLastEvent());
+            if (written != r) {
                 readable.unread(r - written);
+                return false;
+            }
+            return true;
         }
-
-        return written;
+        return false;
     }
 
     //    protected abstract T createConnection(int fd, int ip, int port);

@@ -108,7 +108,7 @@ public class Connection implements Cloneable, Closeable {
             ReadableData readable;
             try {
                 while ((readable = sending.peek()) != null) {
-                    while (!readable.isComplete() && epoll.write(this, readable) > 0) {
+                    while (!readable.isComplete() && epoll.write(this, readable)) {
                     }
                     if (!readable.isComplete()) {
                         enableOnWriteEvent();
