@@ -101,14 +101,20 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public void write() {
+        write(EpollCore.getByteBufferWrapper());
+    }
+
+    public void write(ByteBufferWrapper buffer) {
         if (sending == null)
             return;
 
         synchronized (this) {
             ReadableData readable;
+            ByteBufferWrapper bb;
             try {
                 while ((readable = sending.peek()) != null) {
-                    while (!readable.isComplete() && epoll.write(this, readable)) {
+                    bb = readable.getByteBuffer() != null ? readable.getByteBuffer() : buffer;
+                    while (!readable.isComplete() && epoll.write(this, readable, bb)) {
                     }
                     if (!readable.isComplete()) {
                         enableOnWriteEvent();

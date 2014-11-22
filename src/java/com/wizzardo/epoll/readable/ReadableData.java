@@ -12,26 +12,8 @@ import java.nio.ByteBuffer;
  */
 public abstract class ReadableData implements Closeable {
 
-    private static ThreadLocal<ByteBufferWrapper> byteBuffer = new ThreadLocal<ByteBufferWrapper>() {
-        @Override
-        protected ByteBufferWrapper initialValue() {
-            return new ByteBufferWrapper(ByteBuffer.allocateDirect(50 * 1024));
-        }
-
-        @Override
-        public ByteBufferWrapper get() {
-            ByteBufferWrapper bb = super.get();
-            bb.clear();
-            return bb;
-        }
-    };
-
     public ByteBufferWrapper getByteBuffer() {
-        return getThreadLocalByteBuffer();
-    }
-
-    public static ByteBufferWrapper getThreadLocalByteBuffer() {
-        return byteBuffer.get();
+        return null;
     }
 
     public int getByteBufferOffset() {

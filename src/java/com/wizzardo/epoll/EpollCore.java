@@ -15,7 +15,7 @@ import static com.wizzardo.epoll.Utils.readShort;
  * @author: wizzardo
  * Date: 11/5/13
  */
-public class EpollCore<T extends Connection> extends Thread {
+public class EpollCore<T extends Connection> extends Thread implements Buffered {
     //  gcc -m32 -shared -fpic -o ../../../../../libepoll-core_x32.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
     //  gcc      -shared -fpic -o ../../../../../libepoll-core_x64.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
     //  javah -jni com.wizzardo.epoll.EpollCore
@@ -23,11 +23,26 @@ public class EpollCore<T extends Connection> extends Thread {
     ByteBuffer events;
     volatile long scope;
     protected volatile boolean running = true;
+    protected final ByteBufferWrapper buffer = new ByteBufferWrapper(ByteBuffer.allocateDirect(50 * 1024));
     private static final Pattern IP_PATTERN = Pattern.compile("[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}");
     private int ioThreadsCount = 8;
     long ttl = 30000;
 
     private IOThread[] ioThreads;
+
+    private static ThreadLocal<ByteBufferWrapper> byteBufferWrapperThreadLocal = new ThreadLocal<ByteBufferWrapper>() {
+        @Override
+        protected ByteBufferWrapper initialValue() {
+            return new ByteBufferWrapper(ByteBuffer.allocateDirect(50 * 1024));
+        }
+
+        @Override
+        public ByteBufferWrapper get() {
+            ByteBufferWrapper bb = super.get();
+            bb.clear();
+            return bb;
+        }
+    };
 
     static {
         try {
@@ -174,6 +189,17 @@ public class EpollCore<T extends Connection> extends Thread {
         }
     }
 
+    @Override
+    public ByteBufferWrapper getBuffer() {
+        return buffer;
+    }
+
+    protected static ByteBufferWrapper getByteBufferWrapper() {
+        if (Thread.currentThread() instanceof Buffered)
+            return ((Buffered) Thread.currentThread()).getBuffer();
+        return byteBufferWrapperThreadLocal.get();
+    }
+
     public int read(T connection, byte[] b, int offset, int length) throws IOException {
         ByteBuffer bb = read(connection, length);
         int r = bb.limit();
@@ -182,7 +208,11 @@ public class EpollCore<T extends Connection> extends Thread {
     }
 
     public ByteBuffer read(T connection, int length) throws IOException {
-        ByteBufferWrapper bb = ReadableData.getThreadLocalByteBuffer();
+        return read(connection, length, getByteBufferWrapper());
+    }
+
+    public ByteBuffer read(T connection, int length, ByteBufferWrapper bb) throws IOException {
+        bb.clear();
         int l = Math.min(length, bb.limit());
         int r = connection.isAlive() ? read(connection.fd, bb.address, 0, l) : -1;
         if (r > 0)
@@ -194,9 +224,9 @@ public class EpollCore<T extends Connection> extends Thread {
     /*
     * @return true if connection ready to write data
     */
-    boolean write(T connection, ReadableData readable) throws IOException {
-        ByteBufferWrapper bb = readable.getByteBuffer();
+    boolean write(T connection, ReadableData readable, ByteBufferWrapper bb) throws IOException {
         int offset = readable.getByteBufferOffset();
+        bb.clear();
         int r = readable.read(bb.buffer());
         if (r > 0 && connection.isAlive()) {
             int written = write(connection.fd, bb.address, offset, r);
@@ -208,6 +238,13 @@ public class EpollCore<T extends Connection> extends Thread {
             return true;
         }
         return false;
+    }
+
+    /*
+    * @return true if connection ready to write data
+    */
+    boolean write(T connection, ReadableData readable) throws IOException {
+        return write(connection, readable, readable.getByteBuffer() != null ? readable.getByteBuffer() : getByteBufferWrapper());
     }
 
     //    protected abstract T createConnection(int fd, int ip, int port);
