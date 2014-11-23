@@ -181,7 +181,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     public void onWrite(T connection) {
-        connection.write(getBuffer());
+        connection.write(this);
     }
 
     public void onConnect(T connection) {

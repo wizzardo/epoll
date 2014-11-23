@@ -3,7 +3,6 @@ package com.wizzardo.epoll.sized;
 import com.wizzardo.epoll.Connection;
 import com.wizzardo.epoll.EpollServer;
 import com.wizzardo.epoll.IOThread;
-import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.io.BytesTools;
 
 import java.io.IOException;
@@ -17,15 +16,13 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class SizedDataServer<T extends SizedDataServerConnection> extends EpollServer<T> {
     private Map<Connection, FixedSizeWritableByteArray> reading = new ConcurrentHashMap<Connection, FixedSizeWritableByteArray>();
-    protected ThreadPool threadPool;
 
-    public SizedDataServer(int threads, int port) {
-        this(threads, null, port);
+    public SizedDataServer(int port) {
+        this(null, port);
     }
 
-    public SizedDataServer(int threads, String host, int port) {
+    public SizedDataServer(String host, int port) {
         super(host, port);
-        threadPool = new ThreadPool(threads);
     }
 
 
@@ -81,28 +78,14 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
                 } else {
                     reading.remove(connection);
                     final byte[] data = r.getData();
-                    threadPool.add(new Runnable() {
-                        @Override
-                        public void run() {
-                            handleData(connection, data);
-                        }
-                    });
+                    handleData(connection, data);
                 }
             }
         }
 
         @Override
         public void onWrite(T connection) {
-            createTaskToSendData(connection);
-        }
-
-        protected void createTaskToSendData(final T connection) {
-            threadPool.add(new Runnable() {
-                @Override
-                public void run() {
-                    connection.write();
-                }
-            });
+            connection.write(this);
         }
 
         @Override

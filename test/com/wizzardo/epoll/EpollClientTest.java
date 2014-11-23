@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Date: 5/5/14
  */
 public class EpollClientTest {
-//    @Test
+    //    @Test
     public void simpleTest() throws UnknownHostException {
         EpollCore epoll = new EpollCore<Connection>() {
 
@@ -41,7 +41,12 @@ public class EpollClientTest {
             epoll.write(connection, new ReadableByteArray(("GET /1 HTTP/1.1\r\n" +
                     "Host: localhost:8082\r\n" +
                     "Connection: Close\r\n" +
-                    "\r\n").getBytes()));
+                    "\r\n").getBytes()), new ByteBufferProvider() {
+                @Override
+                public ByteBufferWrapper getBuffer() {
+                    return new ByteBufferWrapper(1024);
+                }
+            });
         } catch (IOException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
@@ -98,7 +103,7 @@ public class EpollClientTest {
                         if (connection.read >= 113) {
                             counter.incrementAndGet();
                             connection.read = 0;
-                            connection.write(request);
+                            connection.write(request, this);
 //                    connection.epoll.close(connection);
                         }
 
@@ -111,7 +116,12 @@ public class EpollClientTest {
         int c = 64;
         for (int i = 0; i < c; i++) {
             Connection connection = epoll.connect("localhost", 8084);
-            connection.write(request);
+            connection.write(request, new ByteBufferProvider() {
+                @Override
+                public ByteBufferWrapper getBuffer() {
+                    return new ByteBufferWrapper(1024);
+                }
+            });
         }
 //        for (int i = 0; i < c; i++) {
 //            Thread t = new Thread() {

@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 public class ByteBufferWrapper {
 
     private final ByteBuffer buffer;
+    private int offset = 0;
 
     public final long address;
 
@@ -27,6 +28,11 @@ public class ByteBufferWrapper {
         address = EpollCore.getAddress(buffer);
         data.read(buffer);
         flip();
+    }
+
+    public ByteBufferWrapper(int length) {
+        this.buffer = ByteBuffer.allocateDirect(length);
+        address = EpollCore.getAddress(buffer);
     }
 
     public ByteBufferWrapper(byte[] bytes) {
@@ -69,5 +75,13 @@ public class ByteBufferWrapper {
 
     public int capacity() {
         return buffer.capacity();
+    }
+
+    public int offset() {
+        return offset;
+    }
+
+    public void offset(int offset) {
+        this.offset = offset;
     }
 }

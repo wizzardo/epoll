@@ -1,5 +1,6 @@
 package com.wizzardo.epoll.readable;
 
+import com.wizzardo.epoll.ByteBufferProvider;
 import com.wizzardo.epoll.ByteBufferWrapper;
 
 import java.io.Closeable;
@@ -12,12 +13,8 @@ import java.nio.ByteBuffer;
  */
 public abstract class ReadableData implements Closeable {
 
-    public ByteBufferWrapper getByteBuffer() {
-        return null;
-    }
-
-    public int getByteBufferOffset() {
-        return 0;
+    public ByteBufferWrapper getByteBuffer(ByteBufferProvider bufferProvider) {
+        return bufferProvider.getBuffer();
     }
 
     public void close() throws IOException {

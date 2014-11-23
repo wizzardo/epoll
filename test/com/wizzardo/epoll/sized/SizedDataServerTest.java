@@ -18,11 +18,11 @@ public class SizedDataServerTest {
     @Test
     public void test() throws InterruptedException, IOException {
         int port = 8080;
-        SizedDataServer server = new SizedDataServer(2, port) {
+        SizedDataServer server = new SizedDataServer(port) {
             @Override
             public void handleData(SizedDataServerConnection connection, byte[] data) {
                 System.out.println(new String(data));
-                connection.write(new ReadableByteArrayWithSize(new String(data).toUpperCase().getBytes()));
+                connection.write(new ReadableByteArrayWithSize(new String(data).toUpperCase().getBytes()), this);
             }
         };
         server.start();

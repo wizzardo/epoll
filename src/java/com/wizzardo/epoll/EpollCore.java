@@ -15,7 +15,7 @@ import static com.wizzardo.epoll.Utils.readShort;
  * @author: wizzardo
  * Date: 11/5/13
  */
-public class EpollCore<T extends Connection> extends Thread implements Buffered {
+public class EpollCore<T extends Connection> extends Thread implements ByteBufferProvider {
     //  gcc -m32 -shared -fpic -o ../../../../../libepoll-core_x32.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
     //  gcc      -shared -fpic -o ../../../../../libepoll-core_x64.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
     //  javah -jni com.wizzardo.epoll.EpollCore
@@ -195,8 +195,8 @@ public class EpollCore<T extends Connection> extends Thread implements Buffered 
     }
 
     protected static ByteBufferWrapper getByteBufferWrapper() {
-        if (Thread.currentThread() instanceof Buffered)
-            return ((Buffered) Thread.currentThread()).getBuffer();
+        if (Thread.currentThread() instanceof ByteBufferProvider)
+            return ((ByteBufferProvider) Thread.currentThread()).getBuffer();
         return byteBufferWrapperThreadLocal.get();
     }
 
@@ -224,12 +224,12 @@ public class EpollCore<T extends Connection> extends Thread implements Buffered 
     /*
     * @return true if connection ready to write data
     */
-    boolean write(T connection, ReadableData readable, ByteBufferWrapper bb) throws IOException {
-        int offset = readable.getByteBufferOffset();
+    boolean write(T connection, ReadableData readable, ByteBufferProvider bufferProvider) throws IOException {
+        ByteBufferWrapper bb = readable.getByteBuffer(bufferProvider);
         bb.clear();
         int r = readable.read(bb.buffer());
         if (r > 0 && connection.isAlive()) {
-            int written = write(connection.fd, bb.address, offset, r);
+            int written = write(connection.fd, bb.address, bb.offset(), r);
 //            System.out.println("write: " + written + " to " + connection + "\t\tnow: " + connection.getLastEvent());
             if (written != r) {
                 readable.unread(r - written);
@@ -238,13 +238,6 @@ public class EpollCore<T extends Connection> extends Thread implements Buffered 
             return true;
         }
         return false;
-    }
-
-    /*
-    * @return true if connection ready to write data
-    */
-    boolean write(T connection, ReadableData readable) throws IOException {
-        return write(connection, readable, readable.getByteBuffer() != null ? readable.getByteBuffer() : getByteBufferWrapper());
     }
 
     //    protected abstract T createConnection(int fd, int ip, int port);

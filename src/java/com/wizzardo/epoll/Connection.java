@@ -73,23 +73,23 @@ public class Connection implements Cloneable, Closeable {
         alive = isAlive;
     }
 
-    public void write(String s) {
+    public void write(String s, ByteBufferProvider bufferProvider) {
         try {
-            write(s.getBytes("utf-8"));
+            write(s.getBytes("utf-8"), bufferProvider);
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void write(byte[] bytes) {
-        write(bytes, 0, bytes.length);
+    public void write(byte[] bytes, ByteBufferProvider bufferProvider) {
+        write(bytes, 0, bytes.length, bufferProvider);
     }
 
-    public void write(byte[] bytes, int offset, int length) {
-        write(new ReadableByteArray(bytes, offset, length));
+    public void write(byte[] bytes, int offset, int length, ByteBufferProvider bufferProvider) {
+        write(new ReadableByteArray(bytes, offset, length), bufferProvider);
     }
 
-    public void write(ReadableData readable) {
+    public void write(ReadableData readable, ByteBufferProvider bufferProvider) {
         if (sending == null)
             synchronized (this) {
                 if (sending == null)
@@ -97,24 +97,18 @@ public class Connection implements Cloneable, Closeable {
             }
 
         sending.add(readable);
-        write();
+        write(bufferProvider);
     }
 
-    public void write() {
-        write(EpollCore.getByteBufferWrapper());
-    }
-
-    public void write(ByteBufferWrapper buffer) {
+    public void write(ByteBufferProvider bufferProvider) {
         if (sending == null)
             return;
 
         synchronized (this) {
             ReadableData readable;
-            ByteBufferWrapper bb;
             try {
                 while ((readable = sending.peek()) != null) {
-                    bb = readable.getByteBuffer() != null ? readable.getByteBuffer() : buffer;
-                    while (!readable.isComplete() && epoll.write(this, readable, bb)) {
+                    while (!readable.isComplete() && epoll.write(this, readable, bufferProvider)) {
                     }
                     if (!readable.isComplete()) {
                         enableOnWriteEvent();

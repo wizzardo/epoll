@@ -57,7 +57,7 @@ public class EpollServerTest {
                         try {
                             byte[] b = new byte[1024];
                             int r = connection.read(b, 0, b.length);
-                            connection.write(b, 0, r);
+                            connection.write(b, 0, r, this);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -106,7 +106,7 @@ public class EpollServerTest {
                             int r = connection.read(b, 0, b.length);
 //                    System.out.println(new String(b,0,r));
 //                            connection.write(response.copy());
-                            connection.write(data);
+                            connection.write(data, this);
 //                    close(connection);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -140,7 +140,7 @@ public class EpollServerTest {
                         try {
                             byte[] b = new byte[32];
                             int r = connection.read(b, 0, b.length);
-                            connection.write(b, 0, r);
+                            connection.write(b, 0, r, this);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -239,7 +239,7 @@ public class EpollServerTest {
                         try {
                             byte[] b = new byte[1024];
                             int r = connection.read(b, 0, b.length);
-                            connection.write(b, 0, r);
+                            connection.write(b, 0, r, this);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -290,7 +290,7 @@ public class EpollServerTest {
 
                     @Override
                     public void onConnect(Connection connection) {
-                        connection.write(data);
+                        connection.write(data, this);
                     }
                 };
             }
@@ -353,7 +353,7 @@ public class EpollServerTest {
                             int r = connection.read(b, 0, b.length);
 //                    System.out.println(new String(b,0,r));
 //                            connection.write(response.copy());
-                            connection.write(data);
+                            connection.write(data, this);
                             connection.close();
                         } catch (IOException e) {
                             e.printStackTrace();
