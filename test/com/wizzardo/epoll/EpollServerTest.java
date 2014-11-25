@@ -56,7 +56,7 @@ public class EpollServerTest {
                     public void onRead(Connection connection) {
                         try {
                             byte[] b = new byte[1024];
-                            int r = connection.read(b, 0, b.length);
+                            int r = connection.read(b, 0, b.length, this);
                             connection.write(b, 0, r, this);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -103,7 +103,7 @@ public class EpollServerTest {
                     @Override
                     public void onRead(Connection connection) {
                         try {
-                            int r = connection.read(b, 0, b.length);
+                            int r = connection.read(b, 0, b.length, this);
 //                    System.out.println(new String(b,0,r));
 //                            connection.write(response.copy());
                             connection.write(data, this);
@@ -139,7 +139,7 @@ public class EpollServerTest {
                     public void onRead(Connection connection) {
                         try {
                             byte[] b = new byte[32];
-                            int r = connection.read(b, 0, b.length);
+                            int r = connection.read(b, 0, b.length, this);
                             connection.write(b, 0, r, this);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -238,7 +238,7 @@ public class EpollServerTest {
                     public void onRead(Connection connection) {
                         try {
                             byte[] b = new byte[1024];
-                            int r = connection.read(b, 0, b.length);
+                            int r = connection.read(b, 0, b.length, this);
                             connection.write(b, 0, r, this);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -350,7 +350,7 @@ public class EpollServerTest {
                     @Override
                     public void onRead(Connection connection) {
                         try {
-                            int r = connection.read(b, 0, b.length);
+                            int r = connection.read(b, 0, b.length, this);
 //                    System.out.println(new String(b,0,r));
 //                            connection.write(response.copy());
                             connection.write(data, this);

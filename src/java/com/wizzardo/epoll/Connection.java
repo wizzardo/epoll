@@ -195,12 +195,12 @@ public class Connection implements Cloneable, Closeable {
         return fd + " " + getIp() + ":" + port;
     }
 
-    public int read(byte[] bytes) throws IOException {
-        return read(bytes, 0, bytes.length);
+    public int read(byte[] bytes, ByteBufferProvider bufferProvider) throws IOException {
+        return read(bytes, 0, bytes.length, bufferProvider);
     }
 
-    public int read(byte[] bytes, int offset, int length) throws IOException {
-        return epoll.read(this, bytes, offset, length);
+    public int read(byte[] bytes, int offset, int length, ByteBufferProvider bufferProvider) throws IOException {
+        return epoll.read(this, bytes, offset, length, bufferProvider);
     }
 
     boolean isInvalid(Long now) {

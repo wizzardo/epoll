@@ -30,20 +30,6 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     private IOThread[] ioThreads;
 
-    private static ThreadLocal<ByteBufferWrapper> byteBufferWrapperThreadLocal = new ThreadLocal<ByteBufferWrapper>() {
-        @Override
-        protected ByteBufferWrapper initialValue() {
-            return new ByteBufferWrapper(ByteBuffer.allocateDirect(50 * 1024));
-        }
-
-        @Override
-        public ByteBufferWrapper get() {
-            ByteBufferWrapper bb = super.get();
-            bb.clear();
-            return bb;
-        }
-    };
-
     static {
         try {
             loadLib("libepoll-core");
@@ -194,24 +180,15 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         return buffer;
     }
 
-    protected static ByteBufferWrapper getByteBufferWrapper() {
-        if (Thread.currentThread() instanceof ByteBufferProvider)
-            return ((ByteBufferProvider) Thread.currentThread()).getBuffer();
-        return byteBufferWrapperThreadLocal.get();
-    }
-
-    public int read(T connection, byte[] b, int offset, int length) throws IOException {
-        ByteBuffer bb = read(connection, length);
+    public int read(T connection, byte[] b, int offset, int length, ByteBufferProvider bufferProvider) throws IOException {
+        ByteBuffer bb = read(connection, length, bufferProvider);
         int r = bb.limit();
         bb.get(b, offset, r);
         return r;
     }
 
-    public ByteBuffer read(T connection, int length) throws IOException {
-        return read(connection, length, getByteBufferWrapper());
-    }
-
-    public ByteBuffer read(T connection, int length, ByteBufferWrapper bb) throws IOException {
+    public ByteBuffer read(T connection, int length, ByteBufferProvider bufferProvider) throws IOException {
+        ByteBufferWrapper bb = bufferProvider.getBuffer();
         bb.clear();
         int l = Math.min(length, bb.limit());
         int r = connection.isAlive() ? read(connection.fd, bb.address, 0, l) : -1;

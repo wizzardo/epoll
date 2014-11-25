@@ -25,7 +25,7 @@ public class EpollClientTest {
                         int r = 0;
 
                         try {
-                            r = connection.read(b, 0, b.length);
+                            r = connection.read(b, 0, b.length, this);
                         } catch (IOException e) {
                             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
                         }
@@ -92,7 +92,7 @@ public class EpollClientTest {
                         int r = 0;
 
                         try {
-                            r = connection.read(b, 0, b.length);
+                            r = connection.read(b, 0, b.length, this);
                         } catch (IOException e) {
                             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
                         }
