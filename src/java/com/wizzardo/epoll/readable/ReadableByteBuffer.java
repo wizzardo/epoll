@@ -12,13 +12,14 @@ import java.nio.ByteBuffer;
 public class ReadableByteBuffer extends ReadableData {
 
     protected ByteBufferWrapper buffer;
-    protected int length, position;
+    protected int start, end, position;
 
 
     public ReadableByteBuffer(ByteBufferWrapper bufferWrapper) {
         buffer = bufferWrapper;
-        length = bufferWrapper.capacity();
+        end = bufferWrapper.capacity();
         position = 0;
+        start = 0;
     }
 
     public ReadableByteBuffer(ByteBuffer buffer) {
@@ -35,8 +36,8 @@ public class ReadableByteBuffer extends ReadableData {
         if (bb != buffer.buffer())
             throw new IllegalStateException("can't write data to separate buffer");
         buffer.offset(position);
-        int r = length - position;
-        position = length;
+        int r = end - (position - start);
+        position = start + end;
         return r;
     }
 
@@ -44,29 +45,47 @@ public class ReadableByteBuffer extends ReadableData {
     public void unread(int i) {
         if (i < 0)
             throw new IllegalArgumentException("can't unread negative value: " + i);
-        if (position - i < 0)
-            throw new IllegalArgumentException("can't unread value bigger than position (" + position + "): " + i);
+        if (position - i < start)
+            throw new IllegalArgumentException("can't unread value bigger than offset (" + start + "): " + i);
         position -= i;
     }
 
     @Override
     public boolean isComplete() {
-        return length == position;
+        return end == position - start;
     }
 
     @Override
     public long complete() {
-        return position;
+        return position - start;
     }
 
     @Override
     public long length() {
-        return length;
+        return end;
     }
 
     @Override
     public long remains() {
-        return length - position;
+        return end + start - position;
+    }
+
+    public ReadableByteBuffer subBuffer(int offset) {
+        return subBuffer(offset, end - offset);
+    }
+
+    public ReadableByteBuffer subBuffer(int offset, int length) {
+        ReadableByteBuffer bb = copy();
+        if (offset + length + start > end)
+            throw new IndexOutOfBoundsException("offset+length must be <= current length: " + (start + offset + length) + " <= " + end);
+        if (offset < 0)
+            throw new IllegalArgumentException("offset must be >= 0: " + offset);
+        if (length < 0)
+            throw new IllegalArgumentException("length must be >= 0: " + length);
+        bb.start = start + offset;
+        bb.position = bb.start;
+        bb.end = bb.start + length;
+        return bb;
     }
 
     public ReadableByteBuffer copy() {
