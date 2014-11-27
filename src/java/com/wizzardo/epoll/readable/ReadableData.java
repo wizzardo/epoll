@@ -31,4 +31,8 @@ public abstract class ReadableData implements Closeable {
     public abstract long length();
 
     public abstract long remains();
+
+    public boolean hasOwnBuffer() {
+        return false;
+    }
 }

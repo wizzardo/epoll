@@ -1,5 +1,8 @@
 package com.wizzardo.epoll.readable;
 
+import com.wizzardo.epoll.ByteBufferProvider;
+import com.wizzardo.epoll.ByteBufferWrapper;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -55,13 +58,26 @@ public class ReadableBuilder extends ReadableData {
     }
 
     @Override
+    public ByteBufferWrapper getByteBuffer(ByteBufferProvider bufferProvider) {
+        return parts[position].getByteBuffer(bufferProvider);
+    }
+
+    @Override
     public int read(ByteBuffer byteBuffer) {
         if (position >= partsCount)
             return 0;
 
-        int r = parts[position].read(byteBuffer);
-        while (position < partsCount - 1 && parts[position].isComplete() && byteBuffer.hasRemaining()) {
-            r += parts[++position].read(byteBuffer);
+        ReadableData data = parts[position];
+        int r = data.read(byteBuffer);
+        while (position < partsCount - 1 && data.isComplete() && byteBuffer.hasRemaining()) {
+            if (data.hasOwnBuffer()) {
+                position++;
+                break;
+            }
+            data = parts[++position];
+            if (data.hasOwnBuffer())
+                break;
+            r += data.read(byteBuffer);
         }
 
         return r;

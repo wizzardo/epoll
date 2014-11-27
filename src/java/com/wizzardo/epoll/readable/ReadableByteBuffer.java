@@ -32,6 +32,11 @@ public class ReadableByteBuffer extends ReadableData {
     }
 
     @Override
+    public boolean hasOwnBuffer() {
+        return true;
+    }
+
+    @Override
     public int read(ByteBuffer bb) {
         if (bb != buffer.buffer())
             throw new IllegalStateException("can't write data to separate buffer");
