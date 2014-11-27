@@ -62,7 +62,7 @@ public class ReadableByteBuffer extends ReadableData {
 
     @Override
     public long length() {
-        return end;
+        return end - start;
     }
 
     @Override
