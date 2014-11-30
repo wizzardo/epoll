@@ -41,8 +41,8 @@ public class ReadableByteBuffer extends ReadableData {
         if (bb != buffer.buffer())
             throw new IllegalStateException("can't write data to separate buffer");
         buffer.offset(position);
-        int r = end - (position - start);
-        position = start + end;
+        int r = end - position;
+        position = end;
         return r;
     }
 
@@ -57,7 +57,7 @@ public class ReadableByteBuffer extends ReadableData {
 
     @Override
     public boolean isComplete() {
-        return end == position - start;
+        return end == position;
     }
 
     @Override
