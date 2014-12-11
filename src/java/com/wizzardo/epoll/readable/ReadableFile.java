@@ -1,6 +1,6 @@
 package com.wizzardo.epoll.readable;
 
-import com.wizzardo.tools.misc.WrappedException;
+import com.wizzardo.tools.misc.UncheckedThrow;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,7 +55,7 @@ public class ReadableFile extends ReadableData {
                 position += read;
             return read;
         } catch (IOException e) {
-            throw new WrappedException(e);
+            throw UncheckedThrow.rethrow(e);
         }
     }
 
@@ -69,7 +69,7 @@ public class ReadableFile extends ReadableData {
         try {
             randomAccessFile.seek(position);
         } catch (IOException e) {
-            throw new WrappedException(e);
+            throw UncheckedThrow.rethrow(e);
         }
     }
 
