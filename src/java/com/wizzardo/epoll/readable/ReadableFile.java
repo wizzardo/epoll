@@ -46,9 +46,9 @@ public class ReadableFile extends ReadableData {
     @Override
     public int read(ByteBuffer byteBuffer) {
         try {
-            int limit = (int) (offset + length - position);
+            long limit = offset + length - position;
             if (limit < byteBuffer.limit())
-                byteBuffer.limit(limit);
+                byteBuffer.limit((int) limit);
 
             int read = channel.read(byteBuffer);
             if (read > 0)
