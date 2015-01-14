@@ -1,0 +1,46 @@
+apply plugin: 'java'
+
+repositories {
+    jcenter()
+}
+
+sourceCompatibility = 1.6
+targetCompatibility = 1.7
+
+version = '1.0'
+
+ext {
+    workDir = 'src/main/c/com/wizzardo/epoll'
+    jdk = '/home/moxa/soft/jdk1.6.0_45'
+    linux64 = 'build/libepoll-core_x64.so'
+    linux32 = 'build/libepoll-core_x32.so'
+}
+
+dependencies {
+    compile files(
+            '../Utils/out/tools.jar',
+    )
+    testCompile 'junit:junit:4.+'
+}
+
+
+task pack(type: Jar, dependsOn: ['compileLinux64', 'compileLinux32']) {
+    baseName = project.name
+//    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    from 'build/libepoll-core_x64.so'
+    from 'build/libepoll-core_x32.so'
+    with jar
+}
+
+task compileLinux64(type: Exec, dependsOn: ['compileJava']) {
+//    commandLine 'javah', '-jni', 'com.wizzardo.epoll.EpollCore'
+    workingDir workDir
+    commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
+}
+
+task compileLinux32(type: Exec, dependsOn: ['compileJava']) {
+    workingDir workDir
+    commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32'
+}
