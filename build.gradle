@@ -7,10 +7,10 @@ repositories {
 sourceCompatibility = 1.6
 targetCompatibility = 1.7
 
-version = '1.0'
+version = '0.1'
 
 ext {
-    workDir = 'src/main/c/com/wizzardo/epoll'
+    cWorkDir = 'src/main/c/com/wizzardo/epoll'
     jdk = '/home/moxa/soft/jdk1.6.0_45'
     linux64 = 'build/libepoll-core_x64.so'
     linux32 = 'build/libepoll-core_x32.so'
@@ -32,15 +32,18 @@ task pack(type: Jar, dependsOn: ['compileLinux64', 'compileLinux32']) {
     with jar
 }
 
-task compileLinux64(type: Exec, dependsOn: ['compileJava']) {
-//    commandLine 'javah', '-jni', 'com.wizzardo.epoll.EpollCore'
-    workingDir workDir
+task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
+    workingDir cWorkDir
     commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
 }
 
-task compileLinux32(type: Exec, dependsOn: ['compileJava']) {
-    workingDir workDir
+task compileLinux32(type: Exec, dependsOn: ['prepareHeaders']) {
+    workingDir cWorkDir
     commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32'
+}
+
+task prepareHeaders(type: Exec, dependsOn: ['compileJava']) {
+    commandLine 'javah', '-classpath','build/classes/main' ,'-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollCore'
 }
