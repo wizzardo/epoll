@@ -259,7 +259,12 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         File fileOut = null;
         try {
             if (in == null) {
-                in = new FileInputStream(name);
+                File file = new File(name);
+                if (file.exists())
+                    in = new FileInputStream(file);
+                else
+                    in = new FileInputStream(new File("build/" + name));
+
             }
             fileOut = File.createTempFile(name, "lib");
             OutputStream out = new FileOutputStream(fileOut);
