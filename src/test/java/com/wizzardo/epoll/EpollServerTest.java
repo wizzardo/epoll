@@ -1,6 +1,7 @@
 package com.wizzardo.epoll;
 
 
+import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.http.HttpClient;
 import com.wizzardo.tools.misc.Stopwatch;
 import com.wizzardo.tools.security.MD5;
@@ -16,6 +17,7 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author: wizzardo
@@ -85,38 +87,62 @@ public class EpollServerTest {
         server.stopEpoll();
     }
 
-    //    @Test
+    static class BufferedConnection extends Connection {
+        final byte[] buffer = new byte[128];
+        volatile int count;
+
+        public BufferedConnection(int fd, int ip, int port) {
+            super(fd, ip, port);
+        }
+    }
+
+//    @Test
     public void httpTest() throws InterruptedException {
         int port = 8084;
-        EpollServer server = new EpollServer(port) {
+        final ThreadPool pool = new ThreadPool(2);
+        EpollServer<BufferedConnection> server = new EpollServer<BufferedConnection>(port) {
 
-            byte[] data = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
+            @Override
+            protected BufferedConnection createConnection(int fd, int ip, int port) {
+                return new BufferedConnection(fd, ip, port);
+            }
+
+            final byte[] data = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
 //                        byte[] response = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
 //            ReadableByteBuffer response = new ReadableByteBuffer(new ByteBufferWrapper(data));
 
             @Override
-            protected IOThread createIOThread(int number, int divider) {
-                return new IOThread(number, divider) {
-
-                    byte[] b = new byte[1024];
+            protected IOThread<BufferedConnection> createIOThread(int number, int divider) {
+                return new IOThread<BufferedConnection>(number, divider) {
 
                     @Override
-                    public void onRead(Connection connection) {
-                        try {
-                            int r = connection.read(b, 0, b.length, this);
-//                    System.out.println(new String(b,0,r));
+                    public void onRead(final BufferedConnection connection) {
+//                        try {
+//                            int r = connection.read(b, 0, b.length, this);
+//                            System.out.println("read: " + r);
+//                            System.out.println(new String(b, 0, r));
 //                            connection.write(response.copy());
-                            connection.write(data, this);
-//                    close(connection);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            assert e == null;
-                        }
+                        final IOThread that = this;
+                        pool.add(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    connection.count += connection.read(connection.buffer, connection.count, connection.buffer.length - connection.count, that);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                                if (connection.count == 40) {
+                                    connection.count = 0;
+                                    connection.write(data, that);
+                                }
+                            }
+                        });
                     }
                 };
             }
         };
-        server.setIoThreadsCount(3);
+        server.setIoThreadsCount(1);
 
         server.start();
 
@@ -140,6 +166,7 @@ public class EpollServerTest {
                         try {
                             byte[] b = new byte[32];
                             int r = connection.read(b, 0, b.length, this);
+//                            System.out.println("read: " + new String(b, 0, r));
                             connection.write(b, 0, r, this);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -158,7 +185,7 @@ public class EpollServerTest {
                 };
             }
         };
-
+        server.setIoThreadsCount(1);
         server.start();
 
         final AtomicLong total = new AtomicLong(0);
@@ -178,11 +205,16 @@ public class EpollServerTest {
                         OutputStream out = s.getOutputStream();
                         InputStream in = s.getInputStream();
                         byte[] b = new byte[1024];
+                        byte[] hello = "hello world!".getBytes();
                         for (int i = 0; i < n; i++) {
-                            out.write("hello world!".getBytes());
+//                            System.out.println("write");
+                            out.write(hello);
+                            out.flush();
+//                            System.out.println("wait for response");
 
                             int r = in.read(b);
                             total.addAndGet(r);
+//                            System.out.println("get response: " + new String(b, 0, r));
 
                             Assert.assertEquals("hello world!", new String(b, 0, r));
                         }
@@ -297,19 +329,7 @@ public class EpollServerTest {
 
             @Override
             protected Connection createConnection(int fd, int ip, int port) {
-                return new Connection(fd, ip, port) {
-                    @Override
-                    protected void enableOnWriteEvent() {
-                        super.enableOnWriteEvent();
-                        System.out.println("enableOnWriteEvent");
-                    }
-
-                    @Override
-                    protected void disableOnWriteEvent() {
-                        super.disableOnWriteEvent();
-                        System.out.println("disableOnWriteEvent");
-                    }
-                };
+                return new Connection(fd, ip, port);
             }
         };
 
@@ -351,10 +371,12 @@ public class EpollServerTest {
                     public void onRead(Connection connection) {
                         try {
                             int r = connection.read(b, 0, b.length, this);
-//                    System.out.println(new String(b,0,r));
+                            System.out.println(new String(b, 0, r));
 //                            connection.write(response.copy());
                             connection.write(data, this);
+                            System.out.println("write response");
                             connection.close();
+                            System.out.println("close");
                         } catch (IOException e) {
                             e.printStackTrace();
                             assert e == null;
@@ -389,5 +411,55 @@ public class EpollServerTest {
         assert i == n;
         System.out.println(stopwatch);
 
+    }
+
+    @Test
+    public void testAsyncWriteEvent() {
+        int port = 9090;
+        final AtomicReference<Connection> connectionRef = new AtomicReference<Connection>();
+        final AtomicInteger onWrite = new AtomicInteger();
+        EpollServer server = new EpollServer(port) {
+            @Override
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
+                    @Override
+                    public void onConnect(Connection connection) {
+                        connectionRef.set(connection);
+                    }
+
+                    @Override
+                    public void onWrite(Connection connection) {
+                        onWrite.incrementAndGet();
+                        super.onWrite(connection);
+                    }
+                };
+            }
+        };
+
+        server.start();
+
+        try {
+            int pause = 20;
+            Socket s = new Socket("localhost", port);
+            Thread.sleep(pause);
+            Assert.assertNotNull(connectionRef.get());
+            connectionRef.get().enableOnWriteEvent();
+            Thread.sleep(pause);
+            Assert.assertEquals(1, onWrite.get());
+
+            connectionRef.get().disableOnWriteEvent();
+            Thread.sleep(pause);
+            connectionRef.get().enableOnWriteEvent();
+            Thread.sleep(pause);
+            Assert.assertEquals(2, onWrite.get());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            assert e == null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            assert e == null;
+        }
+        server.stopEpoll();
     }
 }
