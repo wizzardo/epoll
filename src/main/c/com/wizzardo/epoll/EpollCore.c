@@ -203,7 +203,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env,
     errno = 0;
 
     e.data.fd = infd;
-    e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+    e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP | EPOLLOUT;
     s = epoll_ctl((*scope).efd, EPOLL_CTL_ADD, infd, &e);
     if (s == -1) {
         throwException(env, strerror(errno), NULL);
@@ -217,20 +217,21 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
     int n, i, s, j = 0;
     struct Scope *scope = (struct Scope *)scopePointer;
     struct epoll_event *events = scope->events;
-    struct epoll_event event = scope->event;
     int sfd = scope->sfd;
     int efd = scope->efd;
     jbyte *jEvents = scope->jEvents;
+    int e;
 
-    if(timeout>0)
+    if(timeout > 0)
         n = epoll_wait(efd, events, scope->maxEvents, timeout);
     else
         n = epoll_wait(efd, events, scope->maxEvents, -1);
 
 //    fprintf(stderr, "get %d events on epoll %d\n", n, efd);
     for (i = 0; i < n; i++) {
+        e = events[i].events;
 //        fprintf(stderr, "fd: %d, event: %d, epoll: %d\n", events[i].data.fd, events[i].events, efd);
-        if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (events[i].events & EPOLLRDHUP) || (!(events[i].events & EPOLLIN) && !(events[i].events & EPOLLOUT))) {
+        if ((e & EPOLLERR) || (e & EPOLLHUP) || (e & EPOLLRDHUP) || (!(e & EPOLLIN) && !(e & EPOLLOUT))) {
             /* An error has occured on this fd, or the socket is not
                ready for reading (why were we notified then?) */
 //            fprintf(stderr, "connection closed for fd %d, event: %d\n", events[i].data.fd, events[i].events);
@@ -262,8 +263,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
 //
 //                fprintf(stderr, " data on descriptor %d\n", events[i].data.fd);
 
-
-            jEvents[j] = (events[i].events & EPOLLOUT) ? 2 : 1; // 2-write; 1-read
+            jEvents[j] = e; // 1-read; 4-write; 5-read and write
             j ++;
             intToBytes(events[i].data.fd, &jEvents[j]);
             j += 4;

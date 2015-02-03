@@ -110,15 +110,12 @@ public class Connection implements Cloneable, Closeable {
                 while ((readable = sending.peek()) != null) {
                     while (!readable.isComplete() && epoll.write(this, readable, bufferProvider)) {
                     }
-                    if (!readable.isComplete()) {
-                        enableOnWriteEvent();
+                    if (!readable.isComplete())
                         return;
-                    }
 
                     readable.close();
                     onWriteData(sending.poll(), !sending.isEmpty());
                 }
-                disableOnWriteEvent();
             } catch (Exception e) {
                 e.printStackTrace();
                 try {

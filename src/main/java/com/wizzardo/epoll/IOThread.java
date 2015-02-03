@@ -56,16 +56,24 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                 try {
                     switch (event) {
                         case 1: {
+//                            System.out.println("on read");
                             onRead(connection);
-                            break;
-                        }
-                        case 2: {
-                            onWrite(connection);
                             break;
                         }
                         case 3: {
                             connection.close();
                             continue;
+                        }
+                        case 4: {
+//                            System.out.println("on write");
+                            onWrite(connection);
+                            break;
+                        }
+                        case 5: {
+//                            System.out.println("on read/write");
+                            onWrite(connection);
+                            onRead(connection);
+                            break;
                         }
                         default:
                             throw new IllegalStateException("this thread only for read/write/close events, event: " + event);
@@ -168,6 +176,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     private void safeOnConnect(T connection) {
         try {
             onConnect(connection);
+//            connection.enableOnWriteEvent();
         } catch (Exception e) {
             onError(connection, e);
         }
