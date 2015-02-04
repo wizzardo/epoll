@@ -99,7 +99,21 @@ public class EpollServerTest {
 //    @Test
     public void httpTest() throws InterruptedException {
         int port = 8084;
-        final ThreadPool pool = new ThreadPool(2);
+        final int poolSize = 2;
+        final ThreadPool pool = new ThreadPool(poolSize);
+        final ThreadLocal<ByteBufferProvider> threadLocal = new ThreadLocal<ByteBufferProvider>() {
+            @Override
+            protected ByteBufferProvider initialValue() {
+                return new ByteBufferProvider() {
+                    ByteBufferWrapper wrapper = new ByteBufferWrapper(1000);
+
+                    @Override
+                    public ByteBufferWrapper getBuffer() {
+                        return wrapper;
+                    }
+                };
+            }
+        };
         EpollServer<BufferedConnection> server = new EpollServer<BufferedConnection>(port) {
 
             @Override
@@ -122,27 +136,35 @@ public class EpollServerTest {
 //                            System.out.println("read: " + r);
 //                            System.out.println(new String(b, 0, r));
 //                            connection.write(response.copy());
-                        final IOThread that = this;
-                        pool.add(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    connection.count += connection.read(connection.buffer, connection.count, connection.buffer.length - connection.count, that);
-                                } catch (IOException e) {
-                                    e.printStackTrace();
+//                        System.out.println("on read");
+                        if (poolSize == 0)
+                            process(connection, this);
+                        else
+                            pool.add(new Runnable() {
+                                @Override
+                                public void run() {
+                                    process(connection, threadLocal.get());
                                 }
+                            });
+                    }
 
-                                if (connection.count == 40) {
-                                    connection.count = 0;
-                                    connection.write(data, that);
-                                }
-                            }
-                        });
+                    private void process(BufferedConnection connection, ByteBufferProvider bufferProvider) {
+                        try {
+                            connection.count += connection.read(connection.buffer, connection.count, connection.buffer.length - connection.count, bufferProvider);
+//                                    System.out.println("read: "+connection.count);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                        if (connection.count == 40) {// request size from wrk
+                            connection.count = 0;
+                            connection.write(data, bufferProvider);
+                        }
                     }
                 };
             }
         };
-        server.setIoThreadsCount(1);
+        server.setIoThreadsCount(2);
 
         server.start();
 
