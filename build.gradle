@@ -17,8 +17,10 @@ ext {
 }
 
 dependencies {
-    compile 'com.wizzardo.tools:tools:0.12'
+    compile 'com.wizzardo.tools:tools-io:0.12'
+
     testCompile 'junit:junit:4.+'
+    testCompile 'com.wizzardo.tools:tools:0.12'
 }
 
 
