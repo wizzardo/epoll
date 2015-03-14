@@ -17,9 +17,7 @@ ext {
 }
 
 dependencies {
-    compile files(
-            '../Utils/out/tools.jar',
-    )
+    compile 'com.wizzardo.tools:tools:0.12'
     testCompile 'junit:junit:4.+'
 }
 
