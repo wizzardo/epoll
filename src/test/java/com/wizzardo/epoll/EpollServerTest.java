@@ -3,7 +3,6 @@ package com.wizzardo.epoll;
 
 import com.wizzardo.epoll.readable.ReadableBuilder;
 import com.wizzardo.epoll.readable.ReadableByteBuffer;
-import com.wizzardo.epoll.readable.ReadableData;
 import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.http.HttpClient;
 import com.wizzardo.tools.misc.Stopwatch;
@@ -93,8 +92,8 @@ public class EpollServerTest {
     @Test
     public void builderTest() throws InterruptedException {
         int port = 9094;
-        final ReadableData partOne = new ReadableByteBuffer(new ByteBufferWrapper("Hello ".getBytes()));
-        final ReadableData partTwo = new ReadableByteBuffer(new ByteBufferWrapper("world!".getBytes()));
+        final ByteBufferWrapper partOne = new ByteBufferWrapper("Hello ".getBytes());
+        final ByteBufferWrapper partTwo = new ByteBufferWrapper("world!".getBytes());
 
         EpollServer server = new EpollServer(port) {
             @Override
@@ -103,7 +102,10 @@ public class EpollServerTest {
 
                     @Override
                     public void onConnect(Connection connection) {
-                        connection.write(new ReadableBuilder().append(partOne).append(partTwo), this);
+                        connection.write(new ReadableBuilder()
+                                .append(new ReadableByteBuffer(partOne))
+                                .append(new ReadableByteBuffer(partTwo))
+                                , this);
                     }
                 };
             }
