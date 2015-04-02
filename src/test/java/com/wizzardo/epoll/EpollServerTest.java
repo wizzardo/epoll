@@ -1,6 +1,9 @@
 package com.wizzardo.epoll;
 
 
+import com.wizzardo.epoll.readable.ReadableBuilder;
+import com.wizzardo.epoll.readable.ReadableByteBuffer;
+import com.wizzardo.epoll.readable.ReadableData;
 import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.http.HttpClient;
 import com.wizzardo.tools.misc.Stopwatch;
@@ -87,6 +90,41 @@ public class EpollServerTest {
         server.stopEpoll();
     }
 
+    @Test
+    public void builderTest() throws InterruptedException {
+        int port = 9094;
+        final ReadableData partOne = new ReadableByteBuffer(new ByteBufferWrapper("Hello ".getBytes()));
+        final ReadableData partTwo = new ReadableByteBuffer(new ByteBufferWrapper("world!".getBytes()));
+
+        EpollServer server = new EpollServer(port) {
+            @Override
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
+
+                    @Override
+                    public void onConnect(Connection connection) {
+                        connection.write(new ReadableBuilder().append(partOne).append(partTwo), this);
+                    }
+                };
+            }
+        };
+
+        server.start();
+
+        try {
+            Socket s = new Socket("localhost", port);
+            InputStream in = s.getInputStream();
+            byte[] b = new byte[1024];
+            int r = in.read(b);
+
+            Assert.assertEquals("Hello world!", new String(b, 0, r));
+        } catch (IOException e) {
+            e.printStackTrace();
+            assert e == null;
+        }
+        server.stopEpoll();
+    }
+
     static class BufferedConnection extends Connection {
         final byte[] buffer = new byte[128];
         volatile int count;
@@ -96,7 +134,7 @@ public class EpollServerTest {
         }
     }
 
-//    @Test
+    //    @Test
     public void httpTest() throws InterruptedException {
         int port = 8084;
         final int poolSize = 2;
@@ -197,12 +235,14 @@ public class EpollServerTest {
 
                     @Override
                     public void onConnect(Connection connection) {
-                        System.out.println("onConnect " + connections.incrementAndGet());
+                        connections.incrementAndGet();
+//                        System.out.println("onConnect " + connections.get());
                     }
 
                     @Override
                     public void onDisconnect(Connection connection) {
-                        System.out.println("onDisconnect " + connections.decrementAndGet());
+                        connections.decrementAndGet();
+//                        System.out.println("onDisconnect " + connections.get());
                     }
                 };
             }
@@ -253,6 +293,7 @@ public class EpollServerTest {
 
         }
         latch.await();
+        Thread.sleep(100);
         Assert.assertEquals(threads, counter.get());
         Assert.assertEquals(0, connections.get());
         System.out.println("total bytes were sent: " + total.get() * 2);
@@ -393,12 +434,12 @@ public class EpollServerTest {
                     public void onRead(Connection connection) {
                         try {
                             int r = connection.read(b, 0, b.length, this);
-                            System.out.println(new String(b, 0, r));
+//                            System.out.println(new String(b, 0, r));
 //                            connection.write(response.copy());
                             connection.write(data, this);
-                            System.out.println("write response");
+//                            System.out.println("write response");
                             connection.close();
-                            System.out.println("close");
+//                            System.out.println("close");
                         } catch (IOException e) {
                             e.printStackTrace();
                             assert e == null;
@@ -465,8 +506,8 @@ public class EpollServerTest {
             Socket s = new Socket("localhost", port);
             Thread.sleep(pause);
             Assert.assertNotNull(connectionRef.get());
-            connectionRef.get().enableOnWriteEvent();
-            Thread.sleep(pause);
+//            connectionRef.get().enableOnWriteEvent();
+//            Thread.sleep(pause);
             Assert.assertEquals(1, onWrite.get());
 
             connectionRef.get().disableOnWriteEvent();
