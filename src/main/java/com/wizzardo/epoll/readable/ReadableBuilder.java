@@ -23,8 +23,12 @@ public class ReadableBuilder extends ReadableData {
     }
 
     public ReadableBuilder(byte[] bytes, int offset, int length) {
+        this(new ReadableByteArray(bytes, offset, length));
+    }
+
+    public ReadableBuilder(ReadableData data) {
         partsCount = 1;
-        parts[0] = new ReadableByteArray(bytes, offset, length);
+        parts[0] = data;
     }
 
     public ReadableBuilder append(byte[] bytes) {
