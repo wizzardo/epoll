@@ -378,7 +378,7 @@ public class EpollServerTest {
 
         final byte[] data = new byte[10 * 1024 * 1024];
         new Random().nextBytes(data);
-        String md5 = MD5.getMD5AsString(data);
+        String md5 = MD5.create().update(data).asString();
 
         EpollServer server = new EpollServer(host, port) {
             @Override
@@ -413,7 +413,7 @@ public class EpollServerTest {
             if (receive.length - offset == 0)
                 break;
         }
-        Assert.assertEquals(md5, MD5.getMD5AsString(receive));
+        Assert.assertEquals(md5, MD5.create().update(receive).asString());
         Assert.assertEquals(0, in.available());
         socket.close();
         server.stopEpoll();
