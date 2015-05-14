@@ -38,15 +38,15 @@ task pack(type: Jar, dependsOn: ['compileLinux64', 'compileLinux32']) {
 task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
     commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-lssl', '-lcrypto'
 }
 
 task compileLinux32(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
     commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32'
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32', '-lssl', '-lcrypto'
 }
 
 task prepareHeaders(type: Exec, dependsOn: ['compileJava']) {
-    commandLine 'javah', '-classpath','build/classes/main' ,'-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollCore'
+    commandLine 'javah', '-classpath', 'build/classes/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollCore'
 }

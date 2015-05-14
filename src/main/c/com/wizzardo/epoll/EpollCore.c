@@ -13,6 +13,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #define MAXEVENTS 1024
 
@@ -21,6 +23,7 @@ struct Scope {
     int sfd;
     int efd;
     jbyte* jEvents;
+    SSL_CTX *sslContext;
     struct epoll_event event;
     struct epoll_event *events;
 };
@@ -295,24 +298,16 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_mod(JNIEnv *env, jo
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_read(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length)
 {
     jbyte *buf =(jbyte *) bb;
-    if (buf == NULL)
-    {
-        return -1;
-    }
-
     errno = 0;
     ssize_t count = read(fd, &(buf[offset]), length);
 
-    if (count == 0)
-    {
+    if (count == 0) {
         int err = errno;
         if (err > 0 && err != EAGAIN)
             throwException(env, strerror(err), NULL);
         // read(2) returns 0 on EOF. Java returns -1.
         return -1;
-    }
-    else if (count == -1)
-    {
+    } else if (count == -1) {
         int err = errno;
         if (err != EAGAIN)
             throwException(env, strerror(err), NULL);
@@ -326,20 +321,14 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_read(JNIEnv *env, jclas
 JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_write(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length)
 {
     jbyte *buf = (jbyte *) bb;
-    if (buf == NULL)
-    {
-        return;
-    }
     int total = 0;
     int s = 0;
 
-    while (total != length)
-    {
+    while (total != length) {
         errno = 0;
         s = write(fd, &(buf[offset + total]), length - total);
 //                fprintf(stderr,"writed: %d\ttotal: %d\tfrom %d\n", s, total+(s>0?s:0),length);
-        if (s == -1)
-        {
+        if (s == -1) {
             int err = errno;
             if (err != EAGAIN)
                 throwException(env, strerror(err), NULL);
@@ -496,4 +485,130 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, job
 
 JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_getAddress(JNIEnv *env, jclass cl, jobject bb){
     return (long) (*env)->GetDirectBufferAddress(env, bb);
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_initSSL(JNIEnv *env, jobject obj, jlong scopePointer){
+    SSL_METHOD *method;
+    SSL_CTX *ctx;
+
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();		/* load & register all cryptos, etc. */
+    SSL_load_error_strings();			/* load all error messages */
+    method = SSLv23_server_method();	/* create new server-method instance */
+    ctx = SSL_CTX_new(method);			/* create new context from method */
+    if (ctx == NULL)    {
+        ERR_print_errors_fp(stderr);
+        abort();
+    }
+	SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | SSL_MODE_RELEASE_BUFFERS);
+    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
+    struct Scope *scope = (struct Scope *)scopePointer;
+    (*scope).sslContext = ctx;
+}
+
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_createSSL(JNIEnv *env, jobject obj, jlong scopePointer, jint fd){
+    SSL *ssl;
+    struct Scope *scope = (struct Scope *)scopePointer;
+    ssl = SSL_new(scope->sslContext);
+    SSL_set_fd(ssl, fd);
+    return (long) ssl;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_acceptSSL(JNIEnv *env, jobject obj, jlong sslPointer){
+    SSL *ssl = (SSL *) sslPointer;
+    errno = 0;
+    int s = SSL_accept(ssl);					/* do SSL-protocol accept */
+    if (errno != 0) {
+        if(errno == 11)
+            return JNI_FALSE;
+//        fprintf(stderr, "result: %d, errno: %d\n", s, errno);
+        ERR_print_errors_fp(stderr);
+        throwException(env, strerror(errno), NULL);
+    }
+    return JNI_TRUE;
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_loadCertificates(JNIEnv *env, jobject obj, jlong scopePointer, jstring certFile, jstring keyFile){
+    struct Scope *scope = (struct Scope *)scopePointer;
+    SSL_CTX* ctx = scope->sslContext;
+    const char *CertFile = ((*env)->GetStringUTFChars(env, certFile, NULL));
+    const char *KeyFile = ((*env)->GetStringUTFChars(env, keyFile, NULL));
+
+	/* set the local certificate from CertFile */
+    if (SSL_CTX_use_certificate_file(ctx, CertFile, SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        throwException(env, strerror(errno), NULL);
+    }
+    /* set the private key from KeyFile (may be the same as CertFile) */
+    if (SSL_CTX_use_PrivateKey_file(ctx, KeyFile, SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        throwException(env, strerror(errno), NULL);
+    }
+    /* verify private key */
+    if (!SSL_CTX_check_private_key(ctx)) {
+        fprintf(stderr, "Private key does not match the public certificate\n");
+        throwException(env, strerror(errno), NULL);
+    }
+}
+
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_readSSL(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length, jlong sslPointer)
+{
+    jbyte *buf =(jbyte *) bb;
+    SSL *ssl = (SSL *) sslPointer;
+
+    errno = 0;
+    int count = SSL_read(ssl, &(buf[offset]), length);
+
+    if (count == 0) {
+        if (errno > 0 && errno != 11)
+            throwException(env, strerror(errno), NULL);
+        // read(2) returns 0 on EOF. Java returns -1.
+        return -1;
+    } else if (count == -1) {
+        if (errno > 0 && errno != 11)
+            throwException(env, strerror(errno), NULL);
+        return -1;
+    }
+
+    return count;
+}
+
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_writeSSL(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length, jlong sslPointer)
+{
+    jbyte *buf = (jbyte *) bb;
+    SSL *ssl = (SSL *) sslPointer;
+
+    int total = 0;
+    int s = 0;
+
+    while (total != length) {
+        errno = 0;
+        s = SSL_write(ssl, &(buf[offset + total]), length - total);
+//                fprintf(stderr,"writed: %d\ttotal: %d\tfrom %d\n", s, total+(s>0?s:0),length);
+        if (s == -1) {
+            int err = errno;
+            if (err != EAGAIN)
+                throwException(env, strerror(err), NULL);
+            return total;
+        }
+
+        int err = errno;
+        if (err > 0 && err != EAGAIN)
+            throwException(env, strerror(err), NULL);
+        total += s;
+    }
+
+    return total;
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_closeSSL(JNIEnv *env, jclass clazz, jlong sslPointer)
+{
+    SSL *ssl = (SSL *) sslPointer;
+    SSL_free(ssl);									/* release SSL state */
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_releaseSslContext(JNIEnv *env, jclass clazz, jlong scopePointer)
+{
+    struct Scope *scope = (struct Scope *)scopePointer;
+    SSL_CTX_free(scope->sslContext);									/* release context */
 }
