@@ -1,10 +1,7 @@
 package com.wizzardo.epoll;
 
-import com.wizzardo.epoll.readable.ReadableData;
-
 import java.io.*;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.regex.Pattern;
 
@@ -23,9 +20,11 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     ByteBuffer events;
     volatile long scope;
     protected volatile boolean running = true;
-    protected final ByteBufferWrapper buffer = new ByteBufferWrapper(ByteBuffer.allocateDirect(50 * 1024));
+    protected final ByteBufferWrapper buffer = new ByteBufferWrapper(ByteBuffer.allocateDirect(16 * 1024));
     private static final Pattern IP_PATTERN = Pattern.compile("[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}");
     private int ioThreadsCount = Runtime.getRuntime().availableProcessors();
+    protected String certFile;
+    protected String keyFile;
     long ttl = 30000;
 
     private IOThread[] ioThreads;
@@ -60,6 +59,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         for (int i = 0; i < ioThreadsCount; i++) {
             ioThreads[i] = createIOThread(i, ioThreadsCount);
             ioThreads[i].setTTL(ttl);
+            ioThreads[i].loadCertificates(certFile, keyFile);
             ioThreads[i].start();
         }
 
@@ -114,7 +114,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         }
     }
 
-    private Long acceptConnections(byte[] buffer, Long eventTime) {
+    private Long acceptConnections(byte[] buffer, Long eventTime) throws IOException {
         events.position(0);
         int k = acceptConnections(scope);
         events.limit(k);
@@ -128,11 +128,11 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         return eventTime;
     }
 
-    private void putConnection(T connection, Long eventTime) {
+    private void putConnection(T connection, Long eventTime) throws IOException {
         ioThreads[connection.fd % ioThreadsCount].putConnection(connection, eventTime);
     }
 
-    public T connect(String host, int port) throws UnknownHostException {
+    public T connect(String host, int port) throws IOException {
         boolean resolve = !IP_PATTERN.matcher(host).matches();
         if (resolve) {
             InetAddress address = InetAddress.getByName(host);
@@ -180,44 +180,6 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         return buffer;
     }
 
-    public int read(T connection, byte[] b, int offset, int length, ByteBufferProvider bufferProvider) throws IOException {
-        ByteBuffer bb = read(connection, length, bufferProvider);
-        int r = bb.limit();
-        bb.get(b, offset, r);
-        return r;
-    }
-
-    public ByteBuffer read(T connection, int length, ByteBufferProvider bufferProvider) throws IOException {
-        ByteBufferWrapper bb = bufferProvider.getBuffer();
-        bb.clear();
-        int l = Math.min(length, bb.limit());
-        int r = connection.isAlive() ? read(connection.fd, bb.address, 0, l) : -1;
-        if (r > 0)
-            bb.position(r);
-        bb.flip();
-        return bb.buffer();
-    }
-
-    /*
-    * @return true if connection ready to write data
-    */
-    boolean write(T connection, ReadableData readable, ByteBufferProvider bufferProvider) throws IOException {
-        ByteBufferWrapper bb = readable.getByteBuffer(bufferProvider);
-        bb.clear();
-        int r = readable.read(bb.buffer());
-        if (r > 0 && connection.isAlive()) {
-            int written = write(connection.fd, bb.address, bb.offset(), r);
-//            System.out.println("write: " + written + " to " + connection + "\t\tnow: " + connection.getLastEvent());
-            if (written != r) {
-                readable.unread(r - written);
-                return false;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    //    protected abstract T createConnection(int fd, int ip, int port);
     protected T createConnection(int fd, int ip, int port) {
         return (T) new Connection(fd, ip, port);
     }
@@ -226,9 +188,30 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         return new IOThread<T>(number, divider);
     }
 
+    long createSSL(int fd) {
+        return createSSL(scope, fd);
+    }
+
+    public void loadCertificates(String certFile, String keyFile) {
+        this.certFile = certFile;
+        this.keyFile = keyFile;
+    }
+
     native void close(int fd);
 
     native boolean attach(long scope, int fd);
+
+    native void initSSL(long scope);
+
+    native long createSSL(long scope, int fd);
+
+    native void closeSSL(long ssl);
+
+    native boolean acceptSSL(long ssl);
+
+    native void releaseSslContext(long scope);
+
+    native void loadCertificates(long scope, String certFile, String keyFile);
 
     private native long init(int maxEvents, ByteBuffer events);
 
@@ -244,9 +227,13 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     private native boolean mod(long scope, int fd, int mode);
 
-    private native int read(int fd, long bbPointer, int off, int len) throws IOException;
+    native int read(int fd, long bbPointer, int off, int len) throws IOException;
 
-    private native int write(int fd, long bbPointer, int off, int len) throws IOException;
+    native int write(int fd, long bbPointer, int off, int len) throws IOException;
+
+    native int readSSL(int fd, long bbPointer, int off, int lenm, long ssl) throws IOException;
+
+    native int writeSSL(int fd, long bbPointer, int off, int len, long ssl) throws IOException;
 
     native static long getAddress(ByteBuffer buffer);
 

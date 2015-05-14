@@ -48,12 +48,11 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
 //                    System.out.println("event on fd " + fd + ": " + event);
                 i += 4;
                 T connection = getConnection(fd);
-                if (connection == null) {
-                    close(fd);
-                    continue;
-                }
-
                 try {
+                    if (connection == null) {
+                        connection.close();
+                        continue;
+                    }
                     switch (event) {
                         case 1: {
 //                            System.out.println("on read");
@@ -148,7 +147,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connections[index] = connection;
     }
 
-    protected void putConnection(T connection, Long eventTime) {
+    protected void putConnection(T connection, Long eventTime) throws IOException {
         newConnections.put(connection.fd, connection);
         connection.setIOThread(this);
         connection.setLastEvent(eventTime);
@@ -157,11 +156,11 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
             connectionsCounter.incrementAndGet();
         } else {
             newConnections.remove(connection.fd);
-            close(connection.fd);
+            connection.close();
         }
     }
 
-    void close(T connection) {
+    void close(T connection) throws IOException {
         connection.setIsAlive(false);
         close(connection.fd);
         connectionsCounter.decrementAndGet();
@@ -197,5 +196,26 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     public void onDisconnect(T connection) {
+    }
+
+    @Override
+    long createSSL(int fd) {
+        return super.createSSL(fd);
+    }
+
+    @Override
+    public void loadCertificates(String certFile, String keyFile) {
+        super.loadCertificates(certFile, keyFile);
+        if (certFile != null && keyFile != null) {
+            initSSL(scope);
+            loadCertificates(scope, certFile, keyFile);
+        }
+    }
+
+    @Override
+    public void stopEpoll() {
+        if (certFile != null && keyFile != null)
+            releaseSslContext(scope);
+        super.stopEpoll();
     }
 }

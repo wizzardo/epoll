@@ -6,6 +6,7 @@ import com.wizzardo.epoll.readable.ReadableData;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -108,7 +109,7 @@ public class Connection implements Cloneable, Closeable {
             ReadableData readable;
             try {
                 while ((readable = sending.peek()) != null) {
-                    while (!readable.isComplete() && epoll.write(this, readable, bufferProvider)) {
+                    while (!readable.isComplete() && actualWrite(readable, bufferProvider)) {
                     }
                     if (!readable.isComplete())
                         return;
@@ -125,6 +126,51 @@ public class Connection implements Cloneable, Closeable {
                 }
             }
         }
+    }
+
+    /*
+    * @return true if connection ready to write data
+    */
+    protected boolean actualWrite(ReadableData readable, ByteBufferProvider bufferProvider) throws IOException {
+        ByteBufferWrapper bb = readable.getByteBuffer(bufferProvider);
+        bb.clear();
+        int r = readable.read(bb.buffer());
+        if (r > 0 && isAlive()) {
+            int written = write(fd, bb.address, bb.offset(), r);
+//            System.out.println("write: " + written + " (" + readable.complete() + "/" + readable.length() + ")" + " to " + this);
+            if (written != r) {
+                readable.unread(r - written);
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    protected int write(int fd, long bbAddress, int offset, int length) throws IOException {
+        return epoll.write(fd, bbAddress, offset, length);
+    }
+
+    public int read(byte[] b, int offset, int length, ByteBufferProvider bufferProvider) throws IOException {
+        ByteBuffer bb = read(length, bufferProvider);
+        int r = bb.limit();
+        bb.get(b, offset, r);
+        return r;
+    }
+
+    public ByteBuffer read(int length, ByteBufferProvider bufferProvider) throws IOException {
+        ByteBufferWrapper bb = bufferProvider.getBuffer();
+        bb.clear();
+        int l = Math.min(length, bb.limit());
+        int r = isAlive() ? read(fd, bb.address, 0, l) : -1;
+        if (r > 0)
+            bb.position(r);
+        bb.flip();
+        return bb.buffer();
+    }
+
+    protected int read(int fd, long bbAddress, int offset, int length) throws IOException {
+        return epoll.read(fd, bbAddress, offset, length);
     }
 
     public void close() throws IOException {
@@ -194,10 +240,6 @@ public class Connection implements Cloneable, Closeable {
 
     public int read(byte[] bytes, ByteBufferProvider bufferProvider) throws IOException {
         return read(bytes, 0, bytes.length, bufferProvider);
-    }
-
-    public int read(byte[] bytes, int offset, int length, ByteBufferProvider bufferProvider) throws IOException {
-        return epoll.read(this, bytes, offset, length, bufferProvider);
     }
 
     boolean isInvalid(Long now) {

@@ -56,7 +56,7 @@ public abstract class SizedDataServer<T extends SizedDataServerConnection> exten
                 try {
                     ByteBuffer bb = null;
                     while ((bb == null || bb.limit() > 0) && r.remaining() > 0) {
-                        bb = read(connection, r.remaining(), this);
+                        bb = connection.read(r.remaining(), this);
 //                    System.out.println("remaining: "+r.remaining());
                         r.write(bb);
 //                    System.out.println("read: " + bb.limit() + "\t" + r.offset() + "/" + r.length());
