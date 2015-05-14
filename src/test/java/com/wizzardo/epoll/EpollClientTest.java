@@ -1,9 +1,11 @@
 package com.wizzardo.epoll;
 
 import com.wizzardo.epoll.readable.ReadableByteArray;
+import com.wizzardo.tools.misc.Unchecked;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -13,7 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class EpollClientTest {
     //    @Test
     public void simpleTest() throws UnknownHostException {
-        EpollCore epoll = new EpollCore<Connection>() {
+        final EpollCore epoll = new EpollCore<Connection>() {
 
             @Override
             protected IOThread createIOThread(int number, int divider) {
@@ -36,20 +38,21 @@ public class EpollClientTest {
         };
 
         epoll.start();
-        Connection connection = epoll.connect("localhost", 8082);
-        try {
-            epoll.write(connection, new ReadableByteArray(("GET /1 HTTP/1.1\r\n" +
-                    "Host: localhost:8082\r\n" +
-                    "Connection: Close\r\n" +
-                    "\r\n").getBytes()), new ByteBufferProvider() {
-                @Override
-                public ByteBufferWrapper getBuffer() {
-                    return new ByteBufferWrapper(1024);
-                }
-            });
-        } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
+        Connection connection = Unchecked.call(new Callable<Connection>() {
+            @Override
+            public Connection call() throws Exception {
+                return epoll.connect("localhost", 8082);
+            }
+        });
+        connection.write(new ReadableByteArray(("GET /1 HTTP/1.1\r\n" +
+                "Host: localhost:8082\r\n" +
+                "Connection: Close\r\n" +
+                "\r\n").getBytes()), new ByteBufferProvider() {
+            @Override
+            public ByteBufferWrapper getBuffer() {
+                return new ByteBufferWrapper(1024);
+            }
+        });
 
         try {
             Thread.sleep(10000);

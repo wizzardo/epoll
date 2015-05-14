@@ -5,6 +5,7 @@ import com.wizzardo.epoll.readable.ReadableBuilder;
 import com.wizzardo.epoll.readable.ReadableByteBuffer;
 import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.http.HttpClient;
+import com.wizzardo.tools.io.FileTools;
 import com.wizzardo.tools.misc.Stopwatch;
 import com.wizzardo.tools.security.MD5;
 import org.junit.Assert;
@@ -205,6 +206,73 @@ public class EpollServerTest {
             }
         };
         server.setIoThreadsCount(2);
+
+        server.start();
+
+        Thread.sleep(25 * 60 * 1000);
+
+        server.stopEpoll();
+    }
+
+//    @Test
+    public void httpsTest() throws InterruptedException {
+        int port = 8084;
+        EpollServer<SecuredConnection> server = new EpollServer<SecuredConnection>(port) {
+
+            @Override
+            protected SecuredConnection createConnection(int fd, int ip, int port) {
+                return new SecuredConnection(fd, ip, port) {
+//                    @Override
+//                    public void onWriteData(ReadableData readable, boolean hasMore) {
+//                        if (readable.length() > 1000)
+//                            try {
+//                                close();
+//                            } catch (IOException e) {
+//                                e.printStackTrace();
+//                            }
+//                    }
+                };
+            }
+
+            byte[] image = FileTools.bytes("/home/wizzardo/interface.gif");
+
+            //            byte[] data = "HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
+            byte[] data = ("HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: " + image.length + "\r\nContent-Type: image/gif\r\n\r\n").getBytes();
+//            byte[] data = ("HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: " + image.length + "\r\nContent-Type: image/gif\r\n\r\n").getBytes();
+
+//                        byte[] response = "HTTP/1.1 200 OK\r\nConnection: Close\r\nContent-Length: 5\r\nContent-Type: text/html;charset=UTF-8\r\n\r\nololo".getBytes();
+//            ReadableByteBuffer response = new ReadableByteBuffer(new ByteBufferWrapper(data));
+
+            @Override
+            protected IOThread<SecuredConnection> createIOThread(int number, int divider) {
+                return new IOThread<SecuredConnection>(number, divider) {
+
+                    byte[] b = new byte[1024];
+
+                    @Override
+                    public void onRead(final SecuredConnection connection) {
+                        try {
+                            int r = connection.read(b, 0, b.length, this);
+                            if (r == 0)
+                                return;
+//                            System.out.println("read: " + r);
+//                            System.out.println(new String(b, 0, r));
+//                            System.out.println("end");
+//                            System.out.println("");
+                            if (r >= 4 && b[r - 4] == '\r' && b[r - 3] == '\n' && b[r - 2] == '\r' && b[r - 1] == '\n') {
+                                connection.write(data, this);
+                                connection.write(image, this);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                };
+            }
+        };
+        server.setIoThreadsCount(4);
+        server.loadCertificates("/home/wizzardo/ssl_server/test_cert.pem", "/home/wizzardo/ssl_server/test_key.pem");
 
         server.start();
 
