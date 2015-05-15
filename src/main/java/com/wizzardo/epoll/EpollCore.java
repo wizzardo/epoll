@@ -197,6 +197,10 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         this.keyFile = keyFile;
     }
 
+    protected boolean isSecured() {
+        return certFile != null && keyFile != null;
+    }
+
     native void close(int fd);
 
     native boolean attach(long scope, int fd);

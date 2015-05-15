@@ -31,6 +31,10 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     @Override
     public void run() {
         byte[] events = new byte[this.events.capacity()];
+        if (isSecured()) {
+            initSSL(scope);
+            loadCertificates(scope, certFile, keyFile);
+        }
 //        System.out.println("start new ioThread");
 
         while (running) {
@@ -148,10 +152,6 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connections[index] = connection;
     }
 
-    protected boolean isSecured() {
-        return certFile != null && keyFile != null;
-    }
-
     protected void putConnection(T connection, Long eventTime) throws IOException {
         newConnections.put(connection.fd, connection);
         connection.setIOThread(this);
@@ -180,7 +180,6 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     private void onAttach(T connection) {
         try {
             onConnect(connection);
-//            connection.enableOnWriteEvent();
         } catch (Exception e) {
             onError(connection, e);
         }
@@ -201,20 +200,6 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     public void onDisconnect(T connection) {
-    }
-
-    @Override
-    long createSSL(int fd) {
-        return super.createSSL(fd);
-    }
-
-    @Override
-    public void loadCertificates(String certFile, String keyFile) {
-        super.loadCertificates(certFile, keyFile);
-        if (isSecured()) {
-            initSSL(scope);
-            loadCertificates(scope, certFile, keyFile);
-        }
     }
 
     @Override
