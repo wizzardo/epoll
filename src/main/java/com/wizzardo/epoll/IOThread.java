@@ -31,10 +31,6 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     @Override
     public void run() {
         byte[] events = new byte[this.events.capacity()];
-        if (isSecured()) {
-            initSSL(scope);
-            loadCertificates(scope, certFile, keyFile);
-        }
 //        System.out.println("start new ioThread");
 
         while (running) {
@@ -204,8 +200,35 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
 
     @Override
     public void stopEpoll() {
-        if (certFile != null && keyFile != null)
+        if (isSecured())
             releaseSslContext(scope);
         super.stopEpoll();
+    }
+
+    protected int write(Connection connection, long bbPointer, int off, int len) throws IOException {
+        if (isSecured()) {
+            if (!connection.prepareSSL())
+                return 0;
+            return writeSSL(connection.fd, bbPointer, off, len, connection.ssl);
+        } else
+            return write(connection.fd, bbPointer, off, len);
+    }
+
+    protected int read(Connection connection, long bbPointer, int off, int len) throws IOException {
+        if (isSecured()) {
+            if (!connection.prepareSSL())
+                return 0;
+            return readSSL(connection.fd, bbPointer, off, len, connection.ssl);
+        } else
+            return read(connection.fd, bbPointer, off, len);
+    }
+
+    @Override
+    public void loadCertificates(SslConfig sslConfig) {
+        super.loadCertificates(sslConfig);
+        if (isSecured()) {
+            initSSL(scope);
+            loadCertificates(scope, sslConfig.getCertFile(), sslConfig.getKeyFile());
+        }
     }
 }

@@ -23,8 +23,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     protected final ByteBufferWrapper buffer = new ByteBufferWrapper(ByteBuffer.allocateDirect(16 * 1024));
     private static final Pattern IP_PATTERN = Pattern.compile("[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}");
     private int ioThreadsCount = Runtime.getRuntime().availableProcessors();
-    protected String certFile;
-    protected String keyFile;
+    protected SslConfig sslConfig;
     long ttl = 30000;
 
     private IOThread[] ioThreads;
@@ -59,7 +58,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         for (int i = 0; i < ioThreadsCount; i++) {
             ioThreads[i] = createIOThread(i, ioThreadsCount);
             ioThreads[i].setTTL(ttl);
-            ioThreads[i].loadCertificates(certFile, keyFile);
+            ioThreads[i].loadCertificates(sslConfig);
             ioThreads[i].start();
         }
 
@@ -193,12 +192,15 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     public void loadCertificates(String certFile, String keyFile) {
-        this.certFile = certFile;
-        this.keyFile = keyFile;
+        loadCertificates(new SslConfig(certFile, keyFile));
+    }
+
+    public void loadCertificates(SslConfig sslConfig) {
+        this.sslConfig = sslConfig;
     }
 
     protected boolean isSecured() {
-        return certFile != null && keyFile != null;
+        return sslConfig != null;
     }
 
     native void close(int fd);
