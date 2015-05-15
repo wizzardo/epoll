@@ -25,11 +25,11 @@ public class SslServerTest {
 //        final byte[] image = FileTools.bytes("/home/wizzardo/interface.gif");
         final byte[] image = new byte[25 * 1024 * 1024];
         new Random().nextBytes(image);
-        EpollServer<SecuredConnection> server = new EpollServer<SecuredConnection>(port) {
+        EpollServer<Connection> server = new EpollServer<Connection>(port) {
 
             @Override
-            protected SecuredConnection createConnection(int fd, int ip, int port) {
-                return new SecuredConnection(fd, ip, port) {
+            protected Connection createConnection(int fd, int ip, int port) {
+                return new Connection(fd, ip, port) {
 //                    @Override
 //                    public void onWriteData(ReadableData readable, boolean hasMore) {
 //                        if (readable.length() > 1000)
@@ -51,13 +51,13 @@ public class SslServerTest {
 //            ReadableByteBuffer response = new ReadableByteBuffer(new ByteBufferWrapper(data));
 
             @Override
-            protected IOThread<SecuredConnection> createIOThread(int number, int divider) {
-                return new IOThread<SecuredConnection>(number, divider) {
+            protected IOThread<Connection> createIOThread(int number, int divider) {
+                return new IOThread<Connection>(number, divider) {
 
                     byte[] b = new byte[1024];
 
                     @Override
-                    public void onRead(final SecuredConnection connection) {
+                    public void onRead(final Connection connection) {
                         try {
                             int r = connection.read(b, 0, b.length, this);
                             if (r == 0)
