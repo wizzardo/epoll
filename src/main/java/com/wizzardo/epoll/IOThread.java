@@ -48,11 +48,12 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
 //                    System.out.println("event on fd " + fd + ": " + event);
                 i += 4;
                 T connection = getConnection(fd);
+                if (connection == null) {
+                    close(fd);
+                    continue;
+                }
+
                 try {
-                    if (connection == null) {
-                        connection.close();
-                        continue;
-                    }
                     switch (event) {
                         case 1: {
 //                            System.out.println("on read");
@@ -147,12 +148,16 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connections[index] = connection;
     }
 
+    protected boolean isSecured() {
+        return certFile != null && keyFile != null;
+    }
+
     protected void putConnection(T connection, Long eventTime) throws IOException {
         newConnections.put(connection.fd, connection);
         connection.setIOThread(this);
         connection.setLastEvent(eventTime);
         if (attach(scope, connection.fd)) {
-            safeOnConnect(connection);
+            onAttach(connection);
             connectionsCounter.incrementAndGet();
         } else {
             newConnections.remove(connection.fd);
@@ -172,7 +177,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         return connectionsCounter.get();
     }
 
-    private void safeOnConnect(T connection) {
+    private void onAttach(T connection) {
         try {
             onConnect(connection);
 //            connection.enableOnWriteEvent();
@@ -206,7 +211,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     @Override
     public void loadCertificates(String certFile, String keyFile) {
         super.loadCertificates(certFile, keyFile);
-        if (certFile != null && keyFile != null) {
+        if (isSecured()) {
             initSSL(scope);
             loadCertificates(scope, certFile, keyFile);
         }
