@@ -57,6 +57,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                     switch (event) {
                         case 1: {
 //                            System.out.println("on read");
+                            connection.readyToRead = true;
                             onRead(connection);
                             break;
                         }
@@ -72,6 +73,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                         case 5: {
 //                            System.out.println("on read/write");
                             onWrite(connection);
+                            connection.readyToRead = true;
                             onRead(connection);
                             break;
                         }

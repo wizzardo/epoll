@@ -26,6 +26,7 @@ public class Connection implements Cloneable, Closeable {
     protected volatile boolean sslAccepted;
     private volatile int mode = 1;
     private volatile boolean alive = true;
+    volatile boolean readyToRead = true;
     private String ipString;
     private Long lastEvent;
 
@@ -56,6 +57,10 @@ public class Connection implements Cloneable, Closeable {
 
     public int getPort() {
         return port;
+    }
+
+    public boolean isReadyToRead() {
+        return readyToRead;
     }
 
     Long setLastEvent(Long lastEvent) {
@@ -164,6 +169,7 @@ public class Connection implements Cloneable, Closeable {
         if (r > 0)
             bb.position(r);
         bb.flip();
+        readyToRead = r == l;
         return bb.buffer();
     }
 
