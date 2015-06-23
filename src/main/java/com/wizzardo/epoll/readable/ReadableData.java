@@ -35,4 +35,7 @@ public abstract class ReadableData implements Closeable {
     public boolean hasOwnBuffer() {
         return false;
     }
+
+    public void onComplete() {
+    }
 }

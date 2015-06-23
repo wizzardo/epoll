@@ -216,6 +216,7 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public void onWriteData(ReadableData readable, boolean hasMore) {
+        readable.onComplete();
     }
 
     @Override
