@@ -35,8 +35,21 @@ task pack(type: Jar, dependsOn: ['compileLinux64', 'compileLinux32']) {
     with jar
 }
 
+task pack32(type: Jar, dependsOn: ['compileLinux32']) {
+    baseName = project.name + '-x32'
+    from 'build/libepoll-core_x32.so'
+    with jar
+}
+
+task pack64(type: Jar, dependsOn: ['compileLinux64']) {
+    baseName = project.name + '-x64'
+    from 'build/libepoll-core_x64.so'
+    with jar
+}
+
 task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
+    println 'jdk: '+jdk
     commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-lssl', '-lcrypto'
 }
