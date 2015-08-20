@@ -3,6 +3,7 @@ package com.wizzardo.epoll;
 
 import com.wizzardo.epoll.readable.ReadableBuilder;
 import com.wizzardo.epoll.readable.ReadableByteBuffer;
+import com.wizzardo.epoll.readable.ReadableData;
 import com.wizzardo.epoll.threadpool.ThreadPool;
 import com.wizzardo.tools.http.HttpClient;
 import com.wizzardo.tools.io.FileTools;
@@ -214,7 +215,7 @@ public class EpollServerTest {
         server.stopEpoll();
     }
 
-//    @Test
+    //    @Test
     public void httpsTest() throws InterruptedException {
         int port = 8084;
         EpollServer<Connection> server = new EpollServer<Connection>(port) {
@@ -585,6 +586,42 @@ public class EpollServerTest {
             connectionRef.get().enableOnWriteEvent();
             Thread.sleep(pause);
             Assert.assertEquals(2, onWrite.get());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            assert e == null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            assert e == null;
+        }
+        server.stopEpoll();
+    }
+
+    @Test
+    public void testTimeout() {
+        int port = 9090;
+        final AtomicInteger onClose = new AtomicInteger();
+
+        EpollServer server = new EpollServer(port) {
+            @Override
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
+
+                    @Override
+                    public void onDisconnect(Connection connection) {
+                        onClose.incrementAndGet();
+                    }
+                };
+            }
+        };
+        server.setTTL(500);
+
+        server.start();
+        try {
+            int pause = 1100;
+            Socket s = new Socket("localhost", port);
+            Thread.sleep(pause);
+            Assert.assertEquals(1, onClose.get());
 
         } catch (IOException e) {
             e.printStackTrace();
