@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -622,6 +623,88 @@ public class EpollServerTest {
             Socket s = new Socket("localhost", port);
             Thread.sleep(pause);
             Assert.assertEquals(1, onClose.get());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            assert e == null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            assert e == null;
+        }
+        server.stopEpoll();
+    }
+
+    @Test
+    public void testCloseReadable() {
+        int port = 9090;
+        final AtomicInteger onClose = new AtomicInteger();
+        final AtomicInteger onCloseResource = new AtomicInteger();
+
+        EpollServer server = new EpollServer(port) {
+            @Override
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
+                    @Override
+                    public void onDisconnect(Connection connection) {
+                        onClose.incrementAndGet();
+                    }
+
+                    @Override
+                    public void onConnect(Connection connection) {
+                        connection.write(new ReadableData() {
+                            long total = 1024 * 1024 * 1024;
+                            int complete;
+
+                            @Override
+                            public int read(ByteBuffer byteBuffer) {
+                                int l = byteBuffer.limit();
+                                complete += l;
+                                return l;
+                            }
+
+                            @Override
+                            public void unread(int i) {
+                                complete -= i;
+                            }
+
+                            @Override
+                            public boolean isComplete() {
+                                return remains() == 0;
+                            }
+
+                            @Override
+                            public long complete() {
+                                return complete;
+                            }
+
+                            @Override
+                            public long length() {
+                                return total;
+                            }
+
+                            @Override
+                            public long remains() {
+                                return total - complete;
+                            }
+
+                            @Override
+                            public void close() throws IOException {
+                                onCloseResource.incrementAndGet();
+                            }
+                        }, this);
+                    }
+                };
+            }
+        };
+        server.setTTL(500);
+
+        server.start();
+        try {
+            int pause = 1100;
+            Socket s = new Socket("localhost", port);
+            Thread.sleep(pause);
+            Assert.assertEquals(1, onClose.get());
+            Assert.assertEquals(1, onCloseResource.get());
 
         } catch (IOException e) {
             e.printStackTrace();
