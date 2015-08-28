@@ -79,7 +79,7 @@ public class SslServerTest {
             }
         };
         server.setIoThreadsCount(4);
-        server.loadCertificates("/home/wizzardo/ssl_server/test_cert.pem", "/home/wizzardo/ssl_server/test_key.pem");
+        server.loadCertificates("src/test/resources/ssl/test_cert.pem", "src/test/resources/ssl/test_key.pem");
 
         server.start();
 
