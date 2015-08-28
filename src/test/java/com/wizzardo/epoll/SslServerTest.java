@@ -1,6 +1,7 @@
 package com.wizzardo.epoll;
 
-import com.wizzardo.tools.http.HttpClient;
+import com.wizzardo.epoll.readable.ReadableData;
+import com.wizzardo.tools.http.*;
 import com.wizzardo.tools.security.MD5;
 import org.junit.Assert;
 import org.junit.Test;
@@ -9,11 +10,14 @@ import javax.net.ssl.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by wizzardo on 12.05.15.
@@ -121,6 +125,110 @@ public class SslServerTest {
         Assert.assertEquals(MD5.create().update(image).asString(), MD5.create().update(out.toByteArray()).asString());
 //        Thread.sleep(25 * 60 * 1000);
 
+        server.stopEpoll();
+    }
+
+    @Test
+    public void testCloseReadable() throws NoSuchAlgorithmException, KeyManagementException {
+        int port = 9090;
+        final AtomicInteger onClose = new AtomicInteger();
+        final AtomicInteger onCloseResource = new AtomicInteger();
+
+        EpollServer server = new EpollServer(port) {
+            @Override
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
+                    @Override
+                    public void onDisconnect(Connection connection) {
+                        onClose.incrementAndGet();
+                    }
+
+                    @Override
+                    public void onConnect(Connection connection) {
+                        byte[] data = ("HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Length: " + (1024 * 1024 * 1024) + "\r\nContent-Type: image/gif\r\n\r\n").getBytes();
+                        connection.write(data, this);
+                        connection.write(new ReadableData() {
+                            long total = 1024 * 1024 * 1024;
+                            int complete;
+
+                            @Override
+                            public int read(ByteBuffer byteBuffer) {
+                                int l = byteBuffer.limit();
+                                complete += l;
+                                return l;
+                            }
+
+                            @Override
+                            public void unread(int i) {
+                                complete -= i;
+                            }
+
+                            @Override
+                            public boolean isComplete() {
+                                return remains() == 0;
+                            }
+
+                            @Override
+                            public long complete() {
+                                return complete;
+                            }
+
+                            @Override
+                            public long length() {
+                                return total;
+                            }
+
+                            @Override
+                            public long remains() {
+                                return total - complete;
+                            }
+
+                            @Override
+                            public void close() throws IOException {
+                                onCloseResource.incrementAndGet();
+                            }
+                        }, this);
+                    }
+                };
+            }
+        };
+        server.setTTL(500);
+        server.loadCertificates("src/test/resources/ssl/test_cert.pem", "src/test/resources/ssl/test_key.pem");
+
+        server.start();
+        try {
+            int pause = 1100;
+            TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                }
+
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
+            }};
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            Response response = HttpClient.createRequest("https://localhost:" + port + "/").setHostnameVerifier(new HostnameVerifier() {
+                @Override
+                public boolean verify(String s, SSLSession sslSession) {
+                    return true;
+                }
+            }).setSSLSocketFactory(sc.getSocketFactory()).get();
+            Thread.sleep(pause);
+            Assert.assertEquals("image/gif", response.header("Content-Type"));
+            Assert.assertEquals(1, onClose.get());
+            Assert.assertEquals(1, onCloseResource.get());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            assert e == null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            assert e == null;
+        }
         server.stopEpoll();
     }
 }
