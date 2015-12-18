@@ -5,16 +5,21 @@ repositories {
 }
 
 sourceCompatibility = 1.6
-targetCompatibility = 1.7
+targetCompatibility = 1.6
 
-version = '0.1'
+archivesBaseName = "epoll"
+
 
 ext {
+    descriptionString = 'Event-based socket server, which uses epoll'
+
     cWorkDir = 'src/main/c/com/wizzardo/epoll'
     jdk = '/home/moxa/soft/jdk1.6.0_45'
     linux64 = 'build/libepoll-core_x64.so'
     linux32 = 'build/libepoll-core_x32.so'
 }
+apply from: 'gradle/sonatype.gradle'
+
 
 dependencies {
 //    compile files(
@@ -27,29 +32,27 @@ dependencies {
 }
 
 
-task pack(type: Jar, dependsOn: ['compileLinux64', 'compileLinux32']) {
-    baseName = project.name
-//    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+jar {
+    dependsOn 'compileLinux32'
+    dependsOn 'compileLinux64'
     from 'build/libepoll-core_x64.so'
     from 'build/libepoll-core_x32.so'
-    with jar
 }
 
-task pack32(type: Jar, dependsOn: ['compileLinux32']) {
+task jar32(type: Jar, dependsOn: ['compileLinux32']) {
     baseName = project.name + '-x32'
     from 'build/libepoll-core_x32.so'
-    with jar
+    from sourceSets.main.output
 }
 
-task pack64(type: Jar, dependsOn: ['compileLinux64']) {
+task jar64(type: Jar, dependsOn: ['compileLinux64']) {
     baseName = project.name + '-x64'
     from 'build/libepoll-core_x64.so'
-    with jar
+    from sourceSets.main.output
 }
 
 task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
-    println 'jdk: '+jdk
     commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-lssl', '-lcrypto'
 }
