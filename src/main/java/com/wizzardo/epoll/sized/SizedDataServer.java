@@ -17,6 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class SizedDataServer<T extends SizedDataServerConnection> extends EpollServer<T> {
     private Map<Connection, FixedSizeWritableByteArray> reading = new ConcurrentHashMap<Connection, FixedSizeWritableByteArray>();
 
+    public SizedDataServer() {
+    }
+
     public SizedDataServer(int port) {
         this(null, port);
     }

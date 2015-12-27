@@ -6,8 +6,12 @@ package com.wizzardo.epoll;
  */
 public class EpollServer<T extends Connection> extends EpollCore<T> {
 
-    private String host;
-    private int port;
+    private volatile String host = "0.0.0.0";
+    private volatile int port = 8080;
+
+    public EpollServer() {
+        super(100);
+    }
 
     public EpollServer(int port) {
         this(null, port);
@@ -19,10 +23,15 @@ public class EpollServer<T extends Connection> extends EpollCore<T> {
 
     public EpollServer(String host, int port, int maxEvents) {
         super(maxEvents);
-        bind(host, port);
 
-        this.host = host == null ? "0.0.0.0" : host;
+        this.host = normalizeHost(host);
         this.port = port;
+    }
+
+    @Override
+    public synchronized void start() {
+        bind(host, port);
+        super.start();
     }
 
     public String getHost() {
@@ -31,5 +40,24 @@ public class EpollServer<T extends Connection> extends EpollCore<T> {
 
     public int getPort() {
         return port;
+    }
+
+    public void setHost(String host) {
+        checkIfStarted();
+        this.host = normalizeHost(host);
+    }
+
+    public void setPort(int port) {
+        checkIfStarted();
+        this.port = port;
+    }
+
+    protected String normalizeHost(String host) {
+        return host == null ? "0.0.0.0" : host;
+    }
+
+    protected void checkIfStarted() {
+        if (started)
+            throw new IllegalStateException("Server is already started");
     }
 }
