@@ -20,6 +20,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     ByteBuffer events;
     volatile long scope;
     protected volatile boolean running = true;
+    protected volatile boolean started = false;
     protected final ByteBufferWrapper buffer = new ByteBufferWrapper(ByteBuffer.allocateDirect(16 * 1024));
     private static final Pattern IP_PATTERN = Pattern.compile("[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}");
     private int ioThreadsCount = Runtime.getRuntime().availableProcessors();
@@ -49,10 +50,15 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         this.ioThreadsCount = ioThreadsCount;
     }
 
+    public boolean isStarted() {
+        return started;
+    }
+
 //    protected AtomicInteger eventCounter = new AtomicInteger(0);
 
     @Override
     public void run() {
+        started = true;
         System.out.println("io threads count: " + ioThreadsCount);
         ioThreads = new IOThread[ioThreadsCount];
         for (int i = 0; i < ioThreadsCount; i++) {
