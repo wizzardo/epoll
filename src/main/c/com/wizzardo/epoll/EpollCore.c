@@ -487,6 +487,15 @@ JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_getAddress(JNIEnv *env
     return (long) (*env)->GetDirectBufferAddress(env, bb);
 }
 
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copy(JNIEnv *env, jclass cl, jobject src,  int  srcPos, jobject dest, int destPos, int length){
+    long srcAddr = (*env)->GetDirectBufferAddress(env, src);
+    long destAddr = (*env)->GetDirectBufferAddress(env, dest);
+
+    jbyte *s = (jbyte *) (srcAddr + srcPos);
+    jbyte *d = (jbyte *) (destAddr + destPos);
+    memcpy(d, s, length);
+}
+
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_initSSL(JNIEnv *env, jobject obj, jlong scopePointer){
     SSL_METHOD *method;
     SSL_CTX *ctx;
