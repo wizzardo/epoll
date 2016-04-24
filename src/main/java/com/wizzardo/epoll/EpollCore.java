@@ -249,6 +249,23 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     native static long getAddress(ByteBuffer buffer);
 
+    public static void arraycopy(ByteBuffer src, int srcPos, ByteBuffer dest, int destPos, int length) {
+        if (length < 0)
+            throw new IndexOutOfBoundsException("length must be >= 0");
+        if (srcPos < 0)
+            throw new IndexOutOfBoundsException("srcPos must be >= 0");
+        if (destPos < 0)
+            throw new IndexOutOfBoundsException("destPos must be >= 0");
+        if (srcPos + length > src.capacity())
+            throw new IndexOutOfBoundsException("srcPos + length must be <= src.capacity()");
+        if (destPos + length > dest.capacity())
+            throw new IndexOutOfBoundsException("destPos + length must be <= dest.capacity()");
+
+        copy(src, srcPos, dest, destPos, length);
+    }
+
+    private native static void copy(ByteBuffer src, int srcPos, ByteBuffer dest, int destPos, int length);
+
     private static void loadLib(String name) {
         String arch = System.getProperty("os.arch");
         name = name + (arch.contains("64") ? "_x64" : "_x32") + ".so";
