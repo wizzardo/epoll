@@ -251,15 +251,15 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     public static void arraycopy(ByteBuffer src, int srcPos, ByteBuffer dest, int destPos, int length) {
         if (length < 0)
-            throw new IndexOutOfBoundsException("length must be >= 0");
+            throw new IndexOutOfBoundsException("length must be >= 0. (length = " + length + ")");
         if (srcPos < 0)
-            throw new IndexOutOfBoundsException("srcPos must be >= 0");
+            throw new IndexOutOfBoundsException("srcPos must be >= 0. (srcPos = " + srcPos + ")");
         if (destPos < 0)
-            throw new IndexOutOfBoundsException("destPos must be >= 0");
+            throw new IndexOutOfBoundsException("destPos must be >= 0. (destPos = " + destPos + ")");
         if (srcPos + length > src.capacity())
-            throw new IndexOutOfBoundsException("srcPos + length must be <= src.capacity()");
+            throw new IndexOutOfBoundsException("srcPos + length must be <= src.capacity(). (srcPos = " + srcPos + ", length = " + length + ", capacity = " + src.capacity() + ")");
         if (destPos + length > dest.capacity())
-            throw new IndexOutOfBoundsException("destPos + length must be <= dest.capacity()");
+            throw new IndexOutOfBoundsException("destPos + length must be <= dest.capacity(). (destPos = " + destPos + ", length = " + length + ", capacity = " + dest.capacity() + ")");
 
         copy(src, srcPos, dest, destPos, length);
     }
