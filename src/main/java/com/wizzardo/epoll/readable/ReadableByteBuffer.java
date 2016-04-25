@@ -2,6 +2,7 @@ package com.wizzardo.epoll.readable;
 
 import com.wizzardo.epoll.ByteBufferProvider;
 import com.wizzardo.epoll.ByteBufferWrapper;
+import com.wizzardo.epoll.EpollCore;
 
 import java.nio.ByteBuffer;
 
@@ -38,12 +39,31 @@ public class ReadableByteBuffer extends ReadableData {
 
     @Override
     public int read(ByteBuffer bb) {
-        if (bb != buffer.buffer())
-            throw new IllegalStateException("can't write data to separate buffer");
-        buffer.offset(position);
-        int r = end - position;
-        position = end;
-        return r;
+        if (bb != buffer.buffer()) {
+            if (bb.isDirect()) {
+                int r = Math.min(bb.remaining(), end - position);
+                EpollCore.arraycopy(buffer.buffer(), position, bb, bb.position(), r);
+                bb.position(r + bb.position());
+                position += r;
+                return r;
+            } else {
+                byte[] bytes = bb.array();
+                int offset = bb.arrayOffset();
+                buffer.offset(position);
+                int l = bytes.length - offset;
+                l = Math.min(l, end - position);
+                buffer.buffer().position(position);
+                buffer.buffer().get(bytes, offset, l);
+                position += l;
+                bb.position(bb.position() + l);
+                return l;
+            }
+        } else {
+            buffer.offset(position);
+            int r = end - position;
+            position = end;
+            return r;
+        }
     }
 
     @Override
