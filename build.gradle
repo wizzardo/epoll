@@ -14,7 +14,10 @@ ext {
     descriptionString = 'Event-based socket server, which uses epoll'
 
     cWorkDir = 'src/main/c/com/wizzardo/epoll'
-    jdk = '/home/moxa/soft/jdk1.6.0_45'
+    jdk = System.getenv('JAVA6_HOME')
+    if (!jdk)
+        throw new IllegalArgumentException('please specify JAVA6_HOME')
+
     linux64 = 'build/libepoll-core_x64.so'
     linux32 = 'build/libepoll-core_x32.so'
 }
