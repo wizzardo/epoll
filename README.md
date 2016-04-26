@@ -43,13 +43,11 @@ Event-based socket server, which uses [epoll]
         server.start();
 ```
 
-Compilation
+Notes
 =========
-```bash                   
-cd src/c/com/wizzardo/epoll
-gcc -m32 -shared -fpic -o ../../../../../libepoll-core_x32.so -I $JAVA_HOME/include/ -I $JAVA_HOME/include/linux/ EpollCore.c
-gcc      -shared -fpic -o ../../../../../libepoll-core_x64.so -I $JAVA_HOME/include/ -I $JAVA_HOME/include/linux/ EpollCore.c
-```
+to build you will need to install libssl-dev
+
+to build 32x version on 64x OS you will need to install libc6-dev-i386 libssl-dev:i386
 
 Download
 =========
