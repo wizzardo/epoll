@@ -11,11 +11,16 @@ import java.nio.ByteBuffer;
  * Date: 7/25/14
  */
 public class ReadableBuilder extends ReadableData {
-    private ReadableData[] parts = new ReadableData[20];
+    private ReadableData[] parts;
     private int partsCount = 0;
     private int position = 0;
 
     public ReadableBuilder() {
+        this(20);
+    }
+
+    public ReadableBuilder(int initSize) {
+        parts = new ReadableData[initSize];
     }
 
     public ReadableBuilder(byte[] bytes) {
@@ -27,6 +32,7 @@ public class ReadableBuilder extends ReadableData {
     }
 
     public ReadableBuilder(ReadableData data) {
+        this();
         partsCount = 1;
         parts[0] = data;
     }
