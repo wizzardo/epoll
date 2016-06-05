@@ -122,6 +122,7 @@ public class Connection implements Cloneable, Closeable {
                         return;
 
                     readable.close();
+                    readable.onComplete();
                     onWriteData(sending.poll(), !sending.isEmpty());
                 }
             } catch (Exception e) {
@@ -216,7 +217,6 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public void onWriteData(ReadableData readable, boolean hasMore) {
-        readable.onComplete();
     }
 
     @Override
