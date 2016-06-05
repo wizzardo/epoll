@@ -109,13 +109,14 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public void write(ByteBufferProvider bufferProvider) {
-        if (sending == null)
+        Queue<ReadableData> queue = this.sending;
+        if (queue == null)
             return;
 
         synchronized (this) {
             ReadableData readable;
             try {
-                while ((readable = sending.peek()) != null) {
+                while ((readable = queue.peek()) != null) {
                     while (!readable.isComplete() && actualWrite(readable, bufferProvider)) {
                     }
                     if (!readable.isComplete())
@@ -123,7 +124,7 @@ public class Connection implements Cloneable, Closeable {
 
                     readable.close();
                     readable.onComplete();
-                    onWriteData(sending.poll(), !sending.isEmpty());
+                    onWriteData(queue.poll(), !queue.isEmpty());
                 }
             } catch (Exception e) {
                 e.printStackTrace();
