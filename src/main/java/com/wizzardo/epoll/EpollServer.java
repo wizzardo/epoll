@@ -6,7 +6,7 @@ package com.wizzardo.epoll;
  */
 public class EpollServer<T extends Connection> extends EpollCore<T> {
 
-    private volatile String host = "0.0.0.0";
+    private volatile String networkInterface = "0.0.0.0";
     private volatile int port = 8080;
 
     public EpollServer() {
@@ -17,34 +17,34 @@ public class EpollServer<T extends Connection> extends EpollCore<T> {
         this(null, port);
     }
 
-    public EpollServer(String host, int port) {
-        this(host, port, 100);
+    public EpollServer(String networkInterface, int port) {
+        this(networkInterface, port, 100);
     }
 
-    public EpollServer(String host, int port, int maxEvents) {
+    public EpollServer(String networkInterface, int port, int maxEvents) {
         super(maxEvents);
 
-        this.host = normalizeHost(host);
+        this.networkInterface = normalizeNetworkInterface(networkInterface);
         this.port = port;
     }
 
     @Override
     public synchronized void start() {
-        bind(host, port);
+        bind(networkInterface, port);
         super.start();
     }
 
-    public String getHost() {
-        return host;
+    public String getNetworkInterface() {
+        return networkInterface;
     }
 
     public int getPort() {
         return port;
     }
 
-    public void setHost(String host) {
+    public void setNetworkInterface(String networkInterface) {
         checkIfStarted();
-        this.host = normalizeHost(host);
+        this.networkInterface = normalizeNetworkInterface(networkInterface);
     }
 
     public void setPort(int port) {
@@ -52,8 +52,8 @@ public class EpollServer<T extends Connection> extends EpollCore<T> {
         this.port = port;
     }
 
-    protected String normalizeHost(String host) {
-        return host == null ? "0.0.0.0" : host;
+    protected String normalizeNetworkInterface(String networkInterface) {
+        return networkInterface == null ? "0.0.0.0" : networkInterface;
     }
 
     protected void checkIfStarted() {
