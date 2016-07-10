@@ -17,6 +17,8 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     //  gcc      -shared -fpic -o ../../../../../libepoll-core_x64.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
     //  javah -jni com.wizzardo.epoll.EpollCore
 
+    public static final boolean SUPPORTED;
+
     ByteBuffer events;
     volatile long scope;
     protected volatile boolean running = true;
@@ -30,11 +32,14 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     private IOThread[] ioThreads;
 
     static {
+        boolean supported = false;
         try {
             loadLib("libepoll-core");
+            supported = true;
         } catch (Exception e) {
             e.printStackTrace();
         }
+        SUPPORTED = supported;
     }
 
     public EpollCore() {
