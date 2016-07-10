@@ -39,7 +39,7 @@ public class EpollServerTest {
 
         Thread.sleep(500);
 
-        server.stopEpoll();
+        server.close();
 
         Thread.sleep(510);
 
@@ -89,7 +89,7 @@ public class EpollServerTest {
             e.printStackTrace();
             assert e == null;
         }
-        server.stopEpoll();
+        server.close();
     }
 
     @Test
@@ -127,7 +127,7 @@ public class EpollServerTest {
             e.printStackTrace();
             assert e == null;
         }
-        server.stopEpoll();
+        server.close();
     }
 
     static class BufferedConnection extends Connection {
@@ -213,7 +213,7 @@ public class EpollServerTest {
 
         Thread.sleep(25 * 60 * 1000);
 
-        server.stopEpoll();
+        server.close();
     }
 
     //    @Test
@@ -280,7 +280,7 @@ public class EpollServerTest {
 
         Thread.sleep(25 * 60 * 1000);
 
-        server.stopEpoll();
+        server.close();
     }
 
     @Test
@@ -372,7 +372,7 @@ public class EpollServerTest {
         time = System.currentTimeMillis() - time;
         System.out.println("for " + time + "ms");
         System.out.println(total.get() * 1000.0 / time / 1024.0 / 1024.0);
-        server.stopEpoll();
+        server.close();
     }
 
     private String getLocalIp() throws UnknownHostException, SocketException {
@@ -438,7 +438,7 @@ public class EpollServerTest {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        server.stopEpoll();
+        server.close();
     }
 
     @Test
@@ -486,7 +486,7 @@ public class EpollServerTest {
         Assert.assertEquals(md5, MD5.create().update(receive).asString());
         Assert.assertEquals(0, in.available());
         socket.close();
-        server.stopEpoll();
+        server.close();
     }
 
     @Test
@@ -541,7 +541,7 @@ public class EpollServerTest {
             System.out.println(i);
             e.printStackTrace();
         }
-        server.stopEpoll();
+        server.close();
 
         assert i == n;
         System.out.println(stopwatch);
@@ -595,7 +595,7 @@ public class EpollServerTest {
             e.printStackTrace();
             assert e == null;
         }
-        server.stopEpoll();
+        server.close();
     }
 
     @Test
@@ -631,7 +631,7 @@ public class EpollServerTest {
             e.printStackTrace();
             assert e == null;
         }
-        server.stopEpoll();
+        server.close();
     }
 
     @Test
@@ -713,6 +713,6 @@ public class EpollServerTest {
             e.printStackTrace();
             assert e == null;
         }
-        server.stopEpoll();
+        server.close();
     }
 }

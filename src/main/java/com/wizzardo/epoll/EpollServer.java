@@ -6,8 +6,8 @@ package com.wizzardo.epoll;
  */
 public class EpollServer<T extends Connection> extends EpollCore<T> {
 
-    private volatile String networkInterface = "0.0.0.0";
-    private volatile int port = 8080;
+    protected volatile String networkInterface = "0.0.0.0";
+    protected volatile int port = 8080;
 
     public EpollServer() {
         super(100);

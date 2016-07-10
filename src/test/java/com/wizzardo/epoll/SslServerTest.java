@@ -10,7 +10,6 @@ import javax.net.ssl.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -125,7 +124,7 @@ public class SslServerTest {
         Assert.assertEquals(MD5.create().update(image).asString(), MD5.create().update(out.toByteArray()).asString());
 //        Thread.sleep(25 * 60 * 1000);
 
-        server.stopEpoll();
+        server.close();
     }
 
     @Test
@@ -229,6 +228,6 @@ public class SslServerTest {
             e.printStackTrace();
             assert e == null;
         }
-        server.stopEpoll();
+        server.close();
     }
 }

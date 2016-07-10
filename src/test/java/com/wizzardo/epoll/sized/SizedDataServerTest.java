@@ -44,6 +44,6 @@ public class SizedDataServerTest {
 //        Thread.sleep(5 * 60 * 1000);
         Thread.sleep(1 * 1000);
 
-        server.stopEpoll();
+        server.close();
     }
 }

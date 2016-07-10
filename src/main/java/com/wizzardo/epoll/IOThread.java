@@ -201,10 +201,10 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     @Override
-    public void stopEpoll() {
+    public void close() {
         if (isSecured())
             releaseSslContext(scope);
-        super.stopEpoll();
+        super.close();
     }
 
     protected int write(Connection connection, long bbPointer, int off, int len) throws IOException {

@@ -103,7 +103,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
             }
         }
         for (int i = 0; i < ioThreads.length; i++) {
-            ioThreads[i].stopEpoll();
+            ioThreads[i].close();
         }
     }
 
@@ -115,7 +115,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         return ttl;
     }
 
-    public void stopEpoll() {
+    public void close() {
         running = false;
         stopListening(scope);
         try {
