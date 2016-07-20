@@ -6,7 +6,7 @@ package com.wizzardo.epoll;
  */
 public class EpollServer<T extends Connection> extends EpollCore<T> {
 
-    protected volatile String networkInterface = "0.0.0.0";
+    protected volatile String hostname = "0.0.0.0";
     protected volatile int port = 8080;
 
     public EpollServer() {
@@ -17,34 +17,34 @@ public class EpollServer<T extends Connection> extends EpollCore<T> {
         this(null, port);
     }
 
-    public EpollServer(String networkInterface, int port) {
-        this(networkInterface, port, 100);
+    public EpollServer(String hostname, int port) {
+        this(hostname, port, 100);
     }
 
-    public EpollServer(String networkInterface, int port, int maxEvents) {
+    public EpollServer(String hostname, int port, int maxEvents) {
         super(maxEvents);
 
-        this.networkInterface = normalizeNetworkInterface(networkInterface);
+        this.hostname = normalizeHostname(hostname);
         this.port = port;
     }
 
     @Override
     public synchronized void start() {
-        bind(networkInterface, port);
+        bind(hostname, port);
         super.start();
     }
 
-    public String getNetworkInterface() {
-        return networkInterface;
+    public String getHostname() {
+        return hostname;
     }
 
     public int getPort() {
         return port;
     }
 
-    public void setNetworkInterface(String networkInterface) {
+    public void setHostname(String hostname) {
         checkIfStarted();
-        this.networkInterface = normalizeNetworkInterface(networkInterface);
+        this.hostname = normalizeHostname(hostname);
     }
 
     public void setPort(int port) {
@@ -52,8 +52,8 @@ public class EpollServer<T extends Connection> extends EpollCore<T> {
         this.port = port;
     }
 
-    protected String normalizeNetworkInterface(String networkInterface) {
-        return networkInterface == null ? "0.0.0.0" : networkInterface;
+    protected String normalizeHostname(String hostname) {
+        return hostname == null ? "0.0.0.0" : hostname;
     }
 
     protected void checkIfStarted() {
