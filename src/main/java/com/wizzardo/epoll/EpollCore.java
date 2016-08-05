@@ -116,11 +116,15 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     public void close() {
-        running = false;
-        stopListening(scope);
-        try {
-            join();
-        } catch (InterruptedException ignored) {
+        synchronized (this) {
+            if(running) {
+                running = false;
+                stopListening(scope);
+                try {
+                    join();
+                } catch (InterruptedException ignored) {
+                }
+            }
         }
     }
 
