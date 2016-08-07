@@ -2,6 +2,7 @@ package com.wizzardo.epoll;
 
 import com.wizzardo.epoll.readable.ReadableByteArray;
 import com.wizzardo.epoll.readable.ReadableData;
+import com.wizzardo.tools.io.IOTools;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -176,13 +177,14 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public void close() throws IOException {
+        if (sending != null)
+            for (ReadableData data : sending)
+                IOTools.close(data);
+
         if (ssl != 0)
             epoll.closeSSL(ssl);
 
         epoll.close(this);
-        if (sending != null)
-            for (ReadableData data : sending)
-                data.close();
     }
 
     public boolean isSecured() {
