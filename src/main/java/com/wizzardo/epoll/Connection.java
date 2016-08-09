@@ -78,7 +78,7 @@ public class Connection implements Cloneable, Closeable {
         return alive;
     }
 
-    synchronized void setIsAlive(boolean isAlive) {
+    protected synchronized void setIsAlive(boolean isAlive) {
         alive = isAlive;
     }
 
