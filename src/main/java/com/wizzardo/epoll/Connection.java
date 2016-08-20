@@ -123,9 +123,10 @@ public class Connection implements Cloneable, Closeable {
                     if (!readable.isComplete())
                         return;
 
+                    queue.poll();
                     readable.close();
                     readable.onComplete();
-                    onWriteData(queue.poll(), !queue.isEmpty());
+                    onWriteData(readable, !queue.isEmpty());
                 }
             } catch (Exception e) {
                 e.printStackTrace();
