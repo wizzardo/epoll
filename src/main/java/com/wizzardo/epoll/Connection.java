@@ -82,23 +82,23 @@ public class Connection implements Cloneable, Closeable {
         alive = isAlive;
     }
 
-    public void write(String s, ByteBufferProvider bufferProvider) {
+    public boolean write(String s, ByteBufferProvider bufferProvider) {
         try {
-            write(s.getBytes("utf-8"), bufferProvider);
+            return write(s.getBytes("utf-8"), bufferProvider);
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void write(byte[] bytes, ByteBufferProvider bufferProvider) {
-        write(bytes, 0, bytes.length, bufferProvider);
+    public boolean write(byte[] bytes, ByteBufferProvider bufferProvider) {
+        return write(bytes, 0, bytes.length, bufferProvider);
     }
 
-    public void write(byte[] bytes, int offset, int length, ByteBufferProvider bufferProvider) {
-        write(new ReadableByteArray(bytes, offset, length), bufferProvider);
+    public boolean write(byte[] bytes, int offset, int length, ByteBufferProvider bufferProvider) {
+        return write(new ReadableByteArray(bytes, offset, length), bufferProvider);
     }
 
-    public void write(ReadableData readable, ByteBufferProvider bufferProvider) {
+    public boolean write(ReadableData readable, ByteBufferProvider bufferProvider) {
         if (sending == null)
             synchronized (this) {
                 if (sending == null)
@@ -106,13 +106,16 @@ public class Connection implements Cloneable, Closeable {
             }
 
         sending.add(readable);
-        write(bufferProvider);
+        return write(bufferProvider);
     }
 
-    public void write(ByteBufferProvider bufferProvider) {
+    /*
+    * @return true if connection is ready to write data
+    */
+    public boolean write(ByteBufferProvider bufferProvider) {
         Queue<ReadableData> queue = this.sending;
         if (queue == null)
-            return;
+            return true;
 
         synchronized (this) {
             ReadableData readable;
@@ -121,7 +124,7 @@ public class Connection implements Cloneable, Closeable {
                     while (!readable.isComplete() && actualWrite(readable, bufferProvider)) {
                     }
                     if (!readable.isComplete())
-                        return;
+                        return false;
 
                     queue.poll();
                     readable.close();
@@ -137,10 +140,11 @@ public class Connection implements Cloneable, Closeable {
                 }
             }
         }
+        return true;
     }
 
     /*
-    * @return true if connection ready to write data
+    * @return true if connection is ready to write data
     */
     protected boolean actualWrite(ReadableData readable, ByteBufferProvider bufferProvider) throws IOException {
         ByteBufferWrapper bb = readable.getByteBuffer(bufferProvider);
