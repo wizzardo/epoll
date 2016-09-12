@@ -1,7 +1,14 @@
 package com.wizzardo.epoll;
 
+import com.wizzardo.tools.io.FileTools;
+import com.wizzardo.tools.misc.Unchecked;
+import com.wizzardo.tools.reflection.FieldReflection;
+import com.wizzardo.tools.reflection.FieldReflectionFactory;
+import com.wizzardo.tools.reflection.UnsafeTools;
+
 import java.io.*;
 import java.net.InetAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.regex.Pattern;
 
@@ -17,7 +24,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     //  gcc      -shared -fpic -o ../../../../../libepoll-core_x64.so -I /home/moxa/soft/jdk1.6.0_45/include/ -I /home/moxa/soft/jdk1.6.0_45/include/linux/ EpollCore.c
     //  javah -jni com.wizzardo.epoll.EpollCore
 
-    public static final boolean SUPPORTED;
+    public static volatile boolean SUPPORTED;
 
     ByteBuffer events;
     volatile long scope;
@@ -36,7 +43,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         try {
             loadLib("libepoll-core");
             supported = true;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         }
         SUPPORTED = supported;
@@ -47,6 +54,10 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     public EpollCore(int maxEvents) {
+        initEpoll(maxEvents);
+    }
+
+    protected void initEpoll(int maxEvents) {
         events = ByteBuffer.allocateDirect((maxEvents + 500) * 11);
         scope = init(maxEvents, events);
     }
@@ -117,7 +128,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     public void close() {
         synchronized (this) {
-            if(running) {
+            if (running) {
                 running = false;
                 stopListening(scope);
                 try {
@@ -256,7 +267,21 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     native int writeSSL(int fd, long bbPointer, int off, int len, long ssl) throws IOException;
 
-    native static long getAddress(ByteBuffer buffer);
+    private native static long getAddress(ByteBuffer buffer);
+
+    private static final FieldReflection byteBufferAddressReflection = getByteBufferAddressReflection();
+
+    private static FieldReflection getByteBufferAddressReflection() {
+        try {
+            return new FieldReflectionFactory().create(Buffer.class, "address", true);
+        } catch (NoSuchFieldException e) {
+            throw Unchecked.rethrow(e);
+        }
+    }
+
+    static long address(ByteBuffer buffer) {
+        return SUPPORTED ? getAddress(buffer) : byteBufferAddressReflection.getLong(buffer);
+    }
 
     public static void arraycopy(ByteBuffer src, int srcPos, ByteBuffer dest, int destPos, int length) {
         if (length < 0)
@@ -270,40 +295,33 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         if (destPos + length > dest.capacity())
             throw new IndexOutOfBoundsException("destPos + length must be <= dest.capacity(). (destPos = " + destPos + ", length = " + length + ", capacity = " + dest.capacity() + ")");
 
-        copy(src, srcPos, dest, destPos, length);
+        if (SUPPORTED) {
+            copy(src, srcPos, dest, destPos, length);
+        } else {
+            UnsafeTools.getUnsafe().copyMemory(address(src) + srcPos, address(dest) + destPos, length);
+        }
     }
 
     private native static void copy(ByteBuffer src, int srcPos, ByteBuffer dest, int destPos, int length);
 
-    private static void loadLib(String name) {
+    private static void loadLib(String name) throws IOException {
         String arch = System.getProperty("os.arch");
         name = name + (arch.contains("64") ? "_x64" : "_x32") + ".so";
         // have to use a stream
         InputStream in = EpollCore.class.getResourceAsStream("/" + name);
 
-        File fileOut = null;
-        try {
-            if (in == null) {
-                File file = new File(name);
-                if (file.exists())
-                    in = new FileInputStream(file);
-                else
-                    in = new FileInputStream(new File("build/" + name));
+        File fileOut;
+        if (in == null) {
+            File file = new File(name);
+            if (file.exists())
+                in = new FileInputStream(file);
+            else
+                in = new FileInputStream(new File("build/" + name));
 
-            }
-            fileOut = File.createTempFile(name, "lib");
-            OutputStream out = new FileOutputStream(fileOut);
-            int r;
-            byte[] b = new byte[1024];
-            while ((r = in.read(b)) != -1) {
-                out.write(b, 0, r);
-            }
-            in.close();
-            out.close();
-            System.load(fileOut.toString());
-            fileOut.deleteOnExit();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
+        fileOut = File.createTempFile(name, "lib");
+        FileTools.bytes(fileOut, in);
+        System.load(fileOut.toString());
+        fileOut.deleteOnExit();
     }
 }

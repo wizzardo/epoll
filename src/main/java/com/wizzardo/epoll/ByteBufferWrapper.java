@@ -20,19 +20,19 @@ public class ByteBufferWrapper {
             throw new IllegalArgumentException("byte buffer must be direct");
 
         this.buffer = buffer;
-        address = EpollCore.getAddress(buffer);
+        address = EpollCore.address(buffer);
     }
 
     public ByteBufferWrapper(ReadableData data) {
         this.buffer = ByteBuffer.allocateDirect((int) data.length());
-        address = EpollCore.getAddress(buffer);
+        address = EpollCore.address(buffer);
         data.read(buffer);
         flip();
     }
 
     public ByteBufferWrapper(int length) {
         this.buffer = ByteBuffer.allocateDirect(length);
-        address = EpollCore.getAddress(buffer);
+        address = EpollCore.address(buffer);
     }
 
     public ByteBufferWrapper(byte[] bytes) {
@@ -41,7 +41,7 @@ public class ByteBufferWrapper {
 
     public ByteBufferWrapper(byte[] bytes, int offset, int length) {
         this.buffer = ByteBuffer.allocateDirect(length);
-        address = EpollCore.getAddress(buffer);
+        address = EpollCore.address(buffer);
         put(bytes, offset, length);
         flip();
     }
