@@ -181,9 +181,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEn
 //                ip += (addr.sa_data[5] < 0 ? 256 + addr.sa_data[5] : addr.sa_data[5]);
 //                fprintf(stderr, "new connection from  %d %d %d \n",infd, ip, port);
 
-        s = make_socket_nodelay(infd);
-        if (s == -1)
-            abort();
+        make_socket_nodelay(infd);
 
 //        event.data.fd = infd;
 //        event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
