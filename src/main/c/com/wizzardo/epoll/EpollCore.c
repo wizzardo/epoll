@@ -29,7 +29,7 @@ struct Scope {
 };
 
 
-static int create_and_bind(const char *host, const char *port)
+int create_and_bind(JNIEnv *env, const char *host, const char *port)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -74,6 +74,7 @@ static int create_and_bind(const char *host, const char *port)
     if (rp == NULL)
     {
         fprintf(stderr, "Could not bind\n");
+        throwException(env, "Address already in use", "java/net/BindException");
         return -1;
     }
 
@@ -125,12 +126,16 @@ static void intToBytes(int i, char* b){
     b[3] = (i) & 0xff;
 }
 
-void throwException(JNIEnv *env, char *message, jstring file) {
+void throwException(JNIEnv *env, char *message) {
+    throwException2(env, message, "java/io/IOException");
+}
+
+void throwException2(JNIEnv *env, char *message, char *clazz) {
     fprintf(stderr, "%d: %s\n", errno, message);
-    jclass exc = (*env)->FindClass(env, "java/io/IOException");
+    jclass exc = (*env)->FindClass(env, clazz);
     jmethodID constr = (*env)->GetMethodID(env, exc, "<init>", "(Ljava/lang/String;)V");
     jstring str = (*env)->NewStringUTF(env, message);
-    jthrowable t = (jthrowable) (*env)->NewObject(env, exc, constr, str, file);
+    jthrowable t = (jthrowable) (*env)->NewObject(env, exc, constr, str, NULL);
     (*env)->Throw(env, t);
 }
 
@@ -209,7 +214,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env,
     e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP | EPOLLOUT;
     s = epoll_ctl((*scope).efd, EPOLL_CTL_ADD, infd, &e);
     if (s == -1) {
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
         perror("epoll_ctl on attach");
         return JNI_FALSE;
     }
@@ -287,7 +292,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_mod(JNIEnv *env, jo
     s = epoll_ctl((*scope).efd, EPOLL_CTL_MOD, fd, &e);
     if (s == -1)
     {
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
         perror("epoll_ctl on mod");
         return JNI_FALSE;
     }
@@ -304,13 +309,13 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_read(JNIEnv *env, jclas
     if (count == 0) {
         int err = errno;
         if (err > 0 && err != EAGAIN)
-            throwException(env, strerror(err), NULL);
+            throwException(env, strerror(err));
         // read(2) returns 0 on EOF. Java returns -1.
         return -1;
     } else if (count == -1) {
         int err = errno;
         if (err != EAGAIN)
-            throwException(env, strerror(err), NULL);
+            throwException(env, strerror(err));
         return -1;
     }
 
@@ -331,13 +336,13 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_write(JNIEnv *env, jcla
         if (s == -1) {
             int err = errno;
             if (err != EAGAIN)
-                throwException(env, strerror(err), NULL);
+                throwException(env, strerror(err));
             return total;
         }
 
         int err = errno;
         if (err > 0 && err != EAGAIN)
-            throwException(env, strerror(err), NULL);
+            throwException(env, strerror(err));
         total += s;
     }
 
@@ -372,14 +377,14 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
     int tcp_socket;
     if((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         printf("Error : Could not create socket \n");
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
         return -1;
     }
 
     int on = 1;
     if(setsockopt(tcp_socket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0){
         printf("setsockopt error occured\n");
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
         return -1;
     }
 
@@ -391,23 +396,23 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
 
     if(inet_pton(AF_INET, hhost, &serv_addr.sin_addr)<=0){
         printf("inet_pton error occured\n");
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
         return -1;
     }
 
     if(connect(tcp_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
         printf("Error : Connect Failed \n");
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
         return -1;
     }
 
     if (make_socket_non_blocking(tcp_socket) < 0){
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
         return -1;
     }
 
     if (make_socket_nodelay(tcp_socket) < 0){
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
         return -1;
     }
 
@@ -451,9 +456,9 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, job
     const char *pport = (*env)->GetStringUTFChars(env, port, NULL);
     const char *hhost = host == NULL? NULL:((*env)->GetStringUTFChars(env, host, NULL));
 
-    int sfd = create_and_bind(hhost, pport);
+    int sfd = create_and_bind(env, hhost, pport);
     if (sfd == -1)
-        abort();
+        return;
 
     int s = make_socket_non_blocking(sfd);
     if (s == -1)
@@ -532,7 +537,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_acceptSSL(JNIEnv *e
             return JNI_FALSE;
 //        fprintf(stderr, "result: %d, errno: %d\n", s, errno);
         ERR_print_errors_fp(stderr);
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
     }
     return JNI_TRUE;
 }
@@ -546,17 +551,17 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_loadCertificates(JNIEnv
 	/* set the local certificate from CertFile */
     if (SSL_CTX_use_certificate_file(ctx, CertFile, SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
     }
     /* set the private key from KeyFile (may be the same as CertFile) */
     if (SSL_CTX_use_PrivateKey_file(ctx, KeyFile, SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
     }
     /* verify private key */
     if (!SSL_CTX_check_private_key(ctx)) {
         fprintf(stderr, "Private key does not match the public certificate\n");
-        throwException(env, strerror(errno), NULL);
+        throwException(env, strerror(errno));
     }
 }
 
@@ -570,12 +575,12 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_readSSL(JNIEnv *env, jc
 
     if (count == 0) {
         if (errno > 0 && errno != 11)
-            throwException(env, strerror(errno), NULL);
+            throwException(env, strerror(errno));
         // read(2) returns 0 on EOF. Java returns -1.
         return -1;
     } else if (count == -1) {
         if (errno > 0 && errno != 11)
-            throwException(env, strerror(errno), NULL);
+            throwException(env, strerror(errno));
         return -1;
     }
 
@@ -597,13 +602,13 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_writeSSL(JNIEnv *env, j
         if (s == -1) {
             int err = errno;
             if (err != EAGAIN)
-                throwException(env, strerror(err), NULL);
+                throwException(env, strerror(err));
             return total;
         }
 
         int err = errno;
         if (err > 0 && err != EAGAIN)
-            throwException(env, strerror(err), NULL);
+            throwException(env, strerror(err));
         total += s;
     }
 

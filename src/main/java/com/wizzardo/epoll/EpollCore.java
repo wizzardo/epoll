@@ -172,7 +172,11 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     protected boolean bind(String host, int port) {
-        listen(scope, host, String.valueOf(port));
+        try {
+            listen(scope, host, String.valueOf(port));
+        } catch (Exception e) {
+            throw Unchecked.rethrow(e);
+        }
         return true;
     }
 
@@ -247,7 +251,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     private native long init(int maxEvents, ByteBuffer events);
 
-    private native void listen(long scope, String host, String port);
+    private native void listen(long scope, String host, String port) throws IOException;
 
     private native boolean stopListening(long scope);
 
