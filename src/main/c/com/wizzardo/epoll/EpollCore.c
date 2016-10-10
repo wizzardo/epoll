@@ -466,18 +466,21 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, job
         return;
 
     int s = make_socket_non_blocking(sfd);
-    if (s == -1)
-        abort();
+    if (s == -1) {
+        throwException(env, strerror(errno));
+        return;
+    }
 
     s = make_socket_nodelay(sfd);
-    if (s == -1)
-        abort();
+    if (s == -1) {
+        throwException(env, strerror(errno));
+        return;
+    }
 
     s = listen(sfd, SOMAXCONN);
-    if (s == -1)
-    {
-        perror("listen");
-        abort();
+    if (s == -1) {
+        throwException(env, strerror(errno));
+        return;
     }
 
     int efd = scope->efd;
@@ -485,9 +488,9 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_listen(JNIEnv *env, job
     event.data.fd = sfd;
     event.events = EPOLLIN | EPOLLET;
     s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
-    if (s == -1){
-        perror("epoll_ctl on listen");
-        abort();
+    if (s == -1) {
+        throwException(env, strerror(errno));
+        return;
     }
 
     (*scope).sfd = sfd;
