@@ -73,8 +73,13 @@ int create_and_bind(JNIEnv *env, const char *host, const char *port)
 
     if (rp == NULL)
     {
-        fprintf(stderr, "Could not bind\n");
-        throwException(env, "Address already in use", "java/net/BindException");
+        if(errno == EADDRINUSE)
+            throwException2(env, "Address already in use", "java/net/BindException");
+        else if(errno == EACCES)
+            throwException2(env, "Permission denied", "java/net/BindException");
+        else
+            throwException2(env, strerror(errno), "java/net/BindException");
+
         return -1;
     }
 
