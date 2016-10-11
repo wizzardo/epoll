@@ -43,10 +43,11 @@ int create_and_bind(JNIEnv *env, const char *host, const char *port)
     s = getaddrinfo(host, port, &hints, &result);
     if (s != 0)
     {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+//        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+        throwException2(env, strerror(errno), "java/net/BindException");
         return -1;
     }
-    fprintf(stderr, "bind on: %s:%s\n", (host == NULL? "ANY":host), port);
+//    fprintf(stderr, "bind on: %s:%s\n", (host == NULL? "ANY":host), port);
 
     for (rp = result; rp != NULL; rp = rp->ai_next)
     {
@@ -57,7 +58,8 @@ int create_and_bind(JNIEnv *env, const char *host, const char *port)
         on = 1;
         s =  setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
         if (s != 0) {
-            fprintf(stderr, "can not set SO_REUSEADDR: %s\n", gai_strerror(s));
+//            fprintf(stderr, "can not set SO_REUSEADDR: %s\n", gai_strerror(s));
+            throwException2(env, strerror(errno), "java/net/BindException");
             return -1;
         }
 
@@ -85,7 +87,7 @@ int create_and_bind(JNIEnv *env, const char *host, const char *port)
 
     freeaddrinfo(result);
 
-    fprintf(stderr, "Server fd: %d\n", sfd);
+//    fprintf(stderr, "Server fd: %d\n", sfd);
     return sfd;
 }
 
@@ -136,7 +138,7 @@ void throwException(JNIEnv *env, char *message) {
 }
 
 void throwException2(JNIEnv *env, char *message, char *clazz) {
-    fprintf(stderr, "%d: %s\n", errno, message);
+//    fprintf(stderr, "%d: %s\n", errno, message);
     jclass exc = (*env)->FindClass(env, clazz);
     jmethodID constr = (*env)->GetMethodID(env, exc, "<init>", "(Ljava/lang/String;)V");
     jstring str = (*env)->NewStringUTF(env, message);
@@ -566,7 +568,7 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_loadCertificates(JNIEnv
     }
     /* verify private key */
     if (!SSL_CTX_check_private_key(ctx)) {
-        fprintf(stderr, "Private key does not match the public certificate\n");
+//        fprintf(stderr, "Private key does not match the public certificate\n");
         throwException(env, strerror(errno));
     }
 }
