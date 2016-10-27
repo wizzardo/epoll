@@ -9,6 +9,8 @@ targetCompatibility = 1.6
 
 archivesBaseName = "epoll"
 
+group = 'com.wizzardo'
+version = '0.1'
 
 ext {
     descriptionString = 'Event-based socket server, which uses epoll'
