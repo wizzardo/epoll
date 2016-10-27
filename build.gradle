@@ -14,9 +14,9 @@ ext {
     descriptionString = 'Event-based socket server, which uses epoll'
 
     cWorkDir = 'src/main/c/com/wizzardo/epoll'
-    jdk = System.getenv('JAVA6_HOME')
+    jdk = System.getenv('JAVA_HOME')
     if (!jdk)
-        throw new IllegalArgumentException('please specify JAVA6_HOME')
+        throw new IllegalArgumentException('please specify JAVA_HOME')
 
     linux64 = 'build/libepoll-core_x64.so'
     linux32 = 'build/libepoll-core_x32.so'
