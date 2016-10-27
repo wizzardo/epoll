@@ -30,11 +30,11 @@ dependencies {
 //    compile files(
 //            '../Utils/build/libs/tools-all-0.13-SNAPSHOT.jar'
 //    )
-    compile 'com.wizzardo.tools:tools-io:0.+'
-    compile 'com.wizzardo.tools:tools-reflection:0.+'
+    compile 'com.wizzardo.tools:tools-io:0.15'
+    compile 'com.wizzardo.tools:tools-reflection:0.15'
 
-    testCompile 'junit:junit:4.+'
-    testCompile 'com.wizzardo.tools:tools:0.+'
+    testCompile 'junit:junit:4.12'
+    testCompile 'com.wizzardo.tools:tools:0.15'
 }
 
 
