@@ -11,9 +11,9 @@ import java.nio.ByteBuffer;
  * Date: 7/25/14
  */
 public class ReadableBuilder extends ReadableData {
-    private ReadableData[] parts;
-    private int partsCount = 0;
-    private int position = 0;
+    protected ReadableData[] parts;
+    protected int partsCount = 0;
+    protected int position = 0;
 
     public ReadableBuilder() {
         this(20);
@@ -35,6 +35,17 @@ public class ReadableBuilder extends ReadableData {
         this();
         partsCount = 1;
         parts[0] = data;
+    }
+
+    public ReadableBuilder reset() {
+        int partsCount = this.partsCount;
+        ReadableData[] parts = this.parts;
+        for (int i = 0; i < partsCount; i++) {
+            parts[i] = null;
+        }
+        position = 0;
+        this.partsCount = 0;
+        return this;
     }
 
     public ReadableBuilder append(byte[] bytes) {
@@ -61,7 +72,7 @@ public class ReadableBuilder extends ReadableData {
         return this;
     }
 
-    private void increaseSize() {
+    protected void increaseSize() {
         ReadableData[] temp = new ReadableData[partsCount * 3 / 2];
         System.arraycopy(parts, 0, temp, 0, partsCount);
         parts = temp;
@@ -77,6 +88,7 @@ public class ReadableBuilder extends ReadableData {
         if (position >= partsCount)
             return 0;
 
+        ReadableData[] parts = this.parts;
         ReadableData data = parts[position];
         int r = data.read(byteBuffer);
         while (position < partsCount - 1 && data.isComplete() && byteBuffer.hasRemaining()) {
@@ -95,10 +107,11 @@ public class ReadableBuilder extends ReadableData {
 
     @Override
     public void unread(int i) {
+        ReadableData[] parts = this.parts;
         while (i > 0) {
             ReadableData part = parts[position];
             int unread = (int) Math.min(i, part.complete());
-            parts[position].unread(unread);
+            part.unread(unread);
             i -= unread;
             if (i > 0)
                 position--;
@@ -113,6 +126,8 @@ public class ReadableBuilder extends ReadableData {
     @Override
     public long complete() {
         long l = 0;
+        ReadableData[] parts = this.parts;
+        int position = this.position;
         for (int i = 0; i <= position; i++) {
             ReadableData part = parts[i];
             if (parts[i].isComplete())
@@ -126,6 +141,8 @@ public class ReadableBuilder extends ReadableData {
     @Override
     public long length() {
         long l = 0;
+        ReadableData[] parts = this.parts;
+        int partsCount = this.partsCount;
         for (int i = 0; i < partsCount; i++) {
             l += parts[i].length();
         }
@@ -135,6 +152,7 @@ public class ReadableBuilder extends ReadableData {
     @Override
     public long remains() {
         long l = 0;
+        ReadableData[] parts = this.parts;
         for (int i = partsCount - 1; i >= 0; i--) {
             if (parts[i].isComplete())
                 break;
@@ -145,19 +163,10 @@ public class ReadableBuilder extends ReadableData {
 
     @Override
     public void close() throws IOException {
+        ReadableData[] parts = this.parts;
+        int partsCount = this.partsCount;
         for (int i = 0; i < partsCount; i++) {
             parts[i].close();
         }
     }
-
-//    public ReadableByteArray toReadableByteArray() {
-//        byte[] data = new byte[(int) length()];
-//        int offset = 0;
-//        for (int i = 0; i < partsCount; i++) {
-//            ReadableData part = parts[i];
-//            System.arraycopy(part.bytes, part.offset, data, offset, part.length);
-//            offset += part.length;
-//        }
-//        return new ReadableByteArray(data);
-//    }
 }
