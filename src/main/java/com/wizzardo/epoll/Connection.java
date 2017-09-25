@@ -19,8 +19,8 @@ public class Connection implements Cloneable, Closeable {
     protected static final int EPOLLIN = 0x001;
     protected static final int EPOLLOUT = 0x004;
 
-    protected final int fd;
-    protected final int ip, port;
+    protected int fd;
+    protected int ip, port;
     protected volatile Queue<ReadableData> sending;
     protected volatile IOThread epoll;
     protected volatile long ssl;
@@ -99,14 +99,39 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public boolean write(ReadableData readable, ByteBufferProvider bufferProvider) {
-        if (sending == null)
+        if (sending == null) {
             synchronized (this) {
-                if (sending == null)
-                    sending = new ConcurrentLinkedQueue<ReadableData>();
-            }
+                try {
 
-        sending.add(readable);
-        return write(bufferProvider);
+                    while (!readable.isComplete() && actualWrite(readable, bufferProvider)) {
+                    }
+                    if (!readable.isComplete()) {
+                        sending = createSendingQueue();
+                        sending.add(readable);
+                        return false;
+                    }
+
+                    readable.close();
+                    readable.onComplete();
+                    onWriteData(readable, false);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    try {
+                        close();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+                }
+                return true;
+            }
+        } else {
+            sending.add(readable);
+            return write(bufferProvider);
+        }
+    }
+
+    protected Queue<ReadableData> createSendingQueue() {
+        return new ConcurrentLinkedQueue<ReadableData>();
     }
 
     /*

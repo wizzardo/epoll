@@ -63,6 +63,13 @@ int create_and_bind(JNIEnv *env, const char *host, const char *port)
             return -1;
         }
 
+        on = 1;
+        s =  setsockopt(sfd, SOL_SOCKET, TCP_DEFER_ACCEPT, &on, sizeof(on));
+        if (s != 0) {
+            fprintf(stderr, "can not set TCP_DEFER_ACCEPT: %s\n", gai_strerror(s));
+            return -1;
+        }
+
         s = bind(sfd, rp->ai_addr, rp->ai_addrlen);
         if (s == 0)
         {
@@ -97,8 +104,18 @@ static int make_socket_nodelay(int sfd) {
     flags = 1;
     int s = setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, (char *) &flags, sizeof(int));
     if (s < 0) {
-      perror ("setsockopt");
+      perror ("setsockopt TCP_NODELAY");
       return -1;
+    }
+
+    if(setsockopt(sfd, IPPROTO_TCP, TCP_QUICKACK, (char *) &flags, sizeof(int)) < 0) {
+      perror ("setsockopt TCP_QUICKACK");
+      return -1;
+    }
+
+    if (setsockopt(sfd, SOL_SOCKET, TCP_DEFER_ACCEPT, (char *) &flags, sizeof(int)) < 0) {
+        fprintf(stderr, "can not set TCP_DEFER_ACCEPT: %s\n", gai_strerror(s));
+        return -1;
     }
 
     return 0;
@@ -333,21 +350,18 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_write(JNIEnv *env, jcla
     jbyte *buf = (jbyte *) bb;
     int total = 0;
     int s = 0;
+    buf += offset;
 
     while (total != length) {
         errno = 0;
-        s = write(fd, &(buf[offset + total]), length - total);
-//                fprintf(stderr,"writed: %d\ttotal: %d\tfrom %d\n", s, total+(s>0?s:0),length);
+        s = write(fd, buf + total, length - total);
+
         if (s == -1) {
-            int err = errno;
-            if (err != EAGAIN)
-                throwException(env, strerror(err));
+            if (errno != EAGAIN)
+                throwException(env, strerror(errno));
             return total;
         }
 
-        int err = errno;
-        if (err > 0 && err != EAGAIN)
-            throwException(env, strerror(err));
         total += s;
     }
 
@@ -357,8 +371,15 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_write(JNIEnv *env, jcla
 
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_close(JNIEnv *env, jobject obj, jint fd)
 {
-//    shutdown(fd, SHUT_RDWR);
+//    if(shutdown(fd, SHUT_RDWR) < 0) {
+//        int err = errno;
+//        fprintf(stderr, "shutdown error = %s\n", strerror(err));
+//    }
     close(fd);
+//    if(close(fd) < 0) {
+//        int err = errno;
+//        fprintf(stderr, "close error = %s\n", strerror(err));
+//    }
 }
 
 JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopListening(JNIEnv *env, jobject obj, jlong scopePointer)
