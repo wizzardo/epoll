@@ -252,7 +252,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_waitForEvents(JNIEnv *e
     jbyte *jEvents = scope->jEvents;
     int e;
 
-    if(timeout > 0)
+    if(timeout >= 0)
         n = epoll_wait(efd, events, scope->maxEvents, timeout);
     else
         n = epoll_wait(efd, events, scope->maxEvents, -1);

@@ -6,7 +6,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.wizzardo.epoll.Utils.readInt;
 
@@ -17,10 +16,9 @@ import static com.wizzardo.epoll.Utils.readInt;
 public class IOThread<T extends Connection> extends EpollCore<T> {
     private final int number;
     private final int divider;
-    private T[] connections = (T[]) new Connection[0];
+    private T[] connections = (T[]) new Connection[1000];
     private Map<Integer, T> newConnections = new ConcurrentHashMap<Integer, T>();
     private LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
-    private AtomicInteger connectionsCounter = new AtomicInteger();
 
     public IOThread(int number, int divider) {
         this.number = number;
@@ -43,59 +41,51 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
             int i = 0;
             while (i < r) {
                 int event = events[i];
-                i++;
-                int fd = readInt(events, i);
+                int fd = readInt(events, i + 1);
 //                    System.out.println("event on fd " + fd + ": " + event);
-                i += 4;
-                T connection = getConnection(fd);
-                if (connection == null) {
-                    close(fd);
-                    continue;
-                }
-
-                try {
-                    switch (event) {
-                        case 1: {
-//                            System.out.println("on read");
-                            connection.readyToRead = true;
-                            onRead(connection);
-                            break;
-                        }
-                        case 3: {
-                            connection.close();
-                            continue;
-                        }
-                        case 4: {
-//                            System.out.println("on write");
-                            onWrite(connection);
-                            break;
-                        }
-                        case 5: {
-//                            System.out.println("on read/write");
-                            onWrite(connection);
-                            connection.readyToRead = true;
-                            onRead(connection);
-                            break;
-                        }
-                        default:
-                            throw new IllegalStateException("this thread only for read/write/close events, event: " + event);
-                    }
-                } catch (Exception e) {
-                    onError(connection, e);
-                }
-
-                Long key = connection.setLastEvent(now);
-//                System.out.println("update timeout for " + connection + " set " + now + " at " + System.currentTimeMillis());
-                timeouts.put(now++, connection);
-                if (key != null)
-                    timeouts.remove(key);
+                now = handleEvent(fd, event, now);
+                i += 5;
             }
 
             handleTimeOuts(now);
         }
     }
 
-    private void handleTimeOuts(Long eventTime) {
+    protected Long handleEvent(int fd, int event, Long now) {
+        T connection = getConnection(fd);
+        if (connection == null) {
+            close(fd);
+            return now;
+        }
+
+        try {
+            if (event == 1) {
+                connection.readyToRead = true;
+                onRead(connection);
+            } else if (event == 4) {
+                onWrite(connection);
+            } else if (event == 5) {
+                onWrite(connection);
+                connection.readyToRead = true;
+                onRead(connection);
+            } else if (event == 3) {
+                connection.close();
+                return now;
+            } else
+                throw new IllegalStateException("this thread only for read/write/close events, event: " + event);
+        } catch (Exception e) {
+            onError(connection, e);
+        }
+
+        Long key = connection.setLastEvent(now);
+//                System.out.println("update timeout for " + connection + " set " + now + " at " + System.currentTimeMillis());
+        timeouts.put(now++, connection);
+        if (key != null)
+            timeouts.remove(key);
+        return now;
+    }
+
+    protected void handleTimeOuts(Long eventTime) {
         eventTime -= ttl * 1000000L * 1000;
         T connection;
         Map.Entry<Long, T> entry;
@@ -156,7 +146,6 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connection.setLastEvent(eventTime);
         if (attach(scope, connection.fd)) {
             onAttach(connection);
-            connectionsCounter.incrementAndGet();
         } else {
             newConnections.remove(connection.fd);
             connection.close();
@@ -165,14 +154,9 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
 
     void close(T connection) throws IOException {
         connection.setIsAlive(false);
-        connectionsCounter.decrementAndGet();
         close(connection.fd);
         onDisconnect(connection);
         deleteConnection(connection.fd);
-    }
-
-    public int getConnectionsCount() {
-        return connectionsCounter.get();
     }
 
     private void onAttach(T connection) {

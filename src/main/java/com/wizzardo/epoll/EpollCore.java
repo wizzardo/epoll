@@ -6,7 +6,10 @@ import com.wizzardo.tools.reflection.FieldReflection;
 import com.wizzardo.tools.reflection.FieldReflectionFactory;
 import com.wizzardo.tools.reflection.UnsafeTools;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -84,35 +87,65 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
             ioThreads[i].start();
         }
 
-        byte[] events = new byte[this.events.capacity()];
-        byte[] newConnections = new byte[this.events.capacity()];
+        ByteBuffer eventsBuffer = this.events;
+        byte[] events = new byte[eventsBuffer.capacity()];
+        byte[] newConnections = new byte[eventsBuffer.capacity()];
+
+        if (ioThreadsCount == 0) {
+            IOThread<T> ioThread = createIOThread(1, 1);
+            ioThreadsCount = 1;
+            ioThread.scope = scope;
+            ioThreads = new IOThread[]{ioThread};
+            ioThreads[0].setTTL(ttl);
+            ioThreads[0].loadCertificates(sslConfig);
+
+            while (running) {
+                try {
+                    eventsBuffer.position(0);
+                    Long now = System.nanoTime() * 1000;
+                    int r = waitForEvents(500);
+                    eventsBuffer.limit(r);
+                    eventsBuffer.get(events, 0, r);
+                    int i = 0;
+                    while (i < r) {
+                        int event = events[i];
+                        if (event == 0) {
+                            acceptConnections(newConnections, now);
+                        } else {
+                            int fd = readInt(events, i + 1);
+                            ioThread.handleEvent(fd, event, now);
+                        }
+                        i += 5;
+                    }
+                    ioThread.handleTimeOuts(now);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            return;
+        }
 
         while (running) {
             try {
-                this.events.position(0);
+                eventsBuffer.position(0);
                 Long now = System.nanoTime() * 1000;
                 int r = waitForEvents(500);
-//                System.out.println("events length: "+r);
-                this.events.limit(r);
-                this.events.get(events, 0, r);
+                eventsBuffer.limit(r);
+                eventsBuffer.get(events, 0, r);
                 int i = 0;
-//                eventCounter.addAndGet(r / 5);
                 while (i < r) {
                     int event = events[i];
                     i += 5;
-                    switch (event) {
-                        case 0: {
-                            acceptConnections(newConnections, now);
-                            break;
-                        }
-                        default:
-                            throw new IllegalStateException("this thread only for accepting new connections, event: " + event);
-                    }
+                    if (event == 0)
+                        acceptConnections(newConnections, now);
+                    else
+                        throw new IllegalStateException("this thread only for accepting new connections, event: " + event);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+
         for (int i = 0; i < ioThreads.length; i++) {
             ioThreads[i].close();
         }
