@@ -49,7 +49,7 @@ public class EpollServerTest {
         } catch (IOException e) {
             connectionRefuse = e.getMessage();
         }
-        Assert.assertEquals("Connection refused", connectionRefuse);
+        Assert.assertEquals("Connection refused (Connection refused)", connectionRefuse);
     }
 
     @Test
@@ -423,7 +423,7 @@ public class EpollServerTest {
         } catch (IOException e) {
             message = e.getMessage();
         }
-        Assert.assertEquals("Connection refused", message);
+        Assert.assertEquals("Connection refused (Connection refused)", message);
 
         try {
             Socket s = new Socket(host, port);
