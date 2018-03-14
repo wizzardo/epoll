@@ -10,13 +10,13 @@ targetCompatibility = 1.8
 archivesBaseName = "epoll"
 
 group = 'com.wizzardo'
-version = '0.2'
+version = '0.3-SNAPSHOT'
 
 ext {
     descriptionString = 'Event-based socket server, which uses epoll'
 
     cWorkDir = 'src/main/c/com/wizzardo/epoll'
-    jdk = System.getenv('JAVA_HOME')
+    jdk = System.getenv('JAVA_HOME') ?: '/home/wizzardo/soft/jdk8'
     if (!jdk)
         throw new IllegalArgumentException('please specify JAVA_HOME')
 
@@ -59,13 +59,13 @@ task jar64(type: Jar, dependsOn: ['compileLinux64']) {
 
 task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
-    commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
+    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-lssl', '-lcrypto'
 }
 
 task compileLinux32(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
-    commandLine 'gcc', '-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
+    commandLine 'gcc', '-Ofast','-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32', '-lssl', '-lcrypto'
 }
 
