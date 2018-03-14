@@ -8,8 +8,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.util.Deque;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author: wizzardo
@@ -21,10 +23,11 @@ public class Connection implements Cloneable, Closeable {
 
     protected int fd;
     protected int ip, port;
-    protected volatile Queue<ReadableData> sending;
+    protected volatile Deque<ReadableData> sending;
     protected volatile IOThread epoll;
     protected volatile long ssl;
     protected volatile boolean sslAccepted;
+    protected final AtomicReference<ByteBufferProvider> writer = new AtomicReference<>();
     private volatile int mode = 1;
     private volatile boolean alive = true;
     volatile boolean readyToRead = true;
@@ -100,14 +103,14 @@ public class Connection implements Cloneable, Closeable {
 
     public boolean write(ReadableData readable, ByteBufferProvider bufferProvider) {
         if (sending == null) {
-            synchronized (this) {
+            if (writer.compareAndSet(null, bufferProvider)) {
                 try {
-
                     while (!readable.isComplete() && actualWrite(readable, bufferProvider)) {
                     }
+
                     if (!readable.isComplete()) {
-                        sending = createSendingQueue();
-                        sending.add(readable);
+                        safeCreateQueueIfNotExists();
+                        sending.addFirst(readable);
                         return false;
                     }
 
@@ -121,30 +124,43 @@ public class Connection implements Cloneable, Closeable {
                     } catch (IOException e1) {
                         e1.printStackTrace();
                     }
+                } finally {
+                    writer.set(null);
                 }
-                return true;
+            } else {
+                safeCreateQueueIfNotExists();
+                sending.add(readable);
             }
+            return write(bufferProvider);
         } else {
             sending.add(readable);
             return write(bufferProvider);
         }
     }
 
-    protected Queue<ReadableData> createSendingQueue() {
-        return new ConcurrentLinkedQueue<ReadableData>();
+    protected void safeCreateQueueIfNotExists() {
+        if (sending == null)
+            synchronized (this) {
+                if (sending == null)
+                    sending = createSendingQueue();
+            }
+    }
+
+    protected Deque<ReadableData> createSendingQueue() {
+        return new ConcurrentLinkedDeque<>();
     }
 
     /*
-    * @return true if connection is ready to write data
-    */
+     * @return true if connection is ready to write data
+     */
     public boolean write(ByteBufferProvider bufferProvider) {
         Queue<ReadableData> queue = this.sending;
         if (queue == null)
             return true;
 
-        synchronized (this) {
-            ReadableData readable;
+        while (!queue.isEmpty() && writer.compareAndSet(null, bufferProvider)) {
             try {
+                ReadableData readable;
                 while ((readable = queue.peek()) != null) {
                     while (!readable.isComplete() && actualWrite(readable, bufferProvider)) {
                     }
@@ -163,18 +179,20 @@ public class Connection implements Cloneable, Closeable {
                 } catch (IOException e1) {
                     e1.printStackTrace();
                 }
+            } finally {
+                writer.set(null);
             }
         }
         return true;
     }
 
     /*
-    * @return true if connection is ready to write data
-    */
+     * @return true if connection is ready to write data
+     */
     protected boolean actualWrite(ReadableData readable, ByteBufferProvider bufferProvider) throws IOException {
         ByteBufferWrapper bb = readable.getByteBuffer(bufferProvider);
         bb.clear();
-        int r = readable.read(bb.buffer());
+        int r = readable.read(bb);
         if (r > 0 && isAlive()) {
             int written = epoll.write(this, bb.address, bb.offset(), r);
 //            System.out.println("write: " + written + " (" + readable.complete() + "/" + readable.length() + ")" + " to " + this);
