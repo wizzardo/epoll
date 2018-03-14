@@ -65,6 +65,14 @@ public class ByteBufferWrapper {
         return this;
     }
 
+    public int remaining() {
+        return buffer.remaining();
+    }
+
+    public int position() {
+        return buffer.position();
+    }
+
     public void clear() {
         buffer.clear();
     }

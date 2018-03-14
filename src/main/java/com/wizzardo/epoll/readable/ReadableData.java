@@ -22,6 +22,10 @@ public abstract class ReadableData implements Closeable {
 
     public abstract int read(ByteBuffer byteBuffer);
 
+    public int read(ByteBufferWrapper wrapper) {
+        return read(wrapper.buffer());
+    }
+
     public abstract void unread(int i);
 
     public abstract boolean isComplete();

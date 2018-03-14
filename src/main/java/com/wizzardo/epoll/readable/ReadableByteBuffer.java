@@ -59,11 +59,28 @@ public class ReadableByteBuffer extends ReadableData {
                 return l;
             }
         } else {
-            buffer.offset(position);
-            int r = end - position;
-            position = end;
-            return r;
+            return readSelf();
         }
+    }
+
+    @Override
+    public int read(ByteBufferWrapper bb) {
+        if (bb.buffer() != buffer.buffer()) {
+            int r = Math.min(bb.remaining(), end - position);
+            EpollCore.copy(buffer, position, bb, bb.position(), r);
+            bb.position(r + bb.position());
+            position += r;
+            return r;
+        } else {
+            return readSelf();
+        }
+    }
+
+    protected int readSelf() {
+        buffer.offset(position);
+        int r = end - position;
+        position = end;
+        return r;
     }
 
     @Override
