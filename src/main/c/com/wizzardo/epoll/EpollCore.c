@@ -530,6 +530,26 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copy(JNIEnv *env, jclas
     memcpy(d, s, length);
 }
 
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyMemory(JNIEnv *env, jclass cl, jlong src, jlong dest, int length){
+    if(length < 64 ) {
+        jbyte *s = (jbyte *) (src);
+        jbyte *d = (jbyte *) (dest);
+        for (int i = 0; i < length; ++i)
+            d[i] = s[i];
+    } else
+        memcpy((jbyte *) dest, (jbyte *) src, length);
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyInto(JNIEnv *env, jclass cl, jlong dest, jlong s1, int l1, jlong s2, int l2, jlong s3, int l3, jlong s4, int l4){
+    memcpy((jbyte *) dest, (jbyte *) s1, l1);
+    dest+=l1;
+    memcpy((jbyte *) dest, (jbyte *) s2, l2);
+    dest+=l2;
+    memcpy((jbyte *) dest, (jbyte *) s3, l3);
+    dest+=l3;
+    memcpy((jbyte *) dest, (jbyte *) s4, l4);
+}
+
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_initSSL(JNIEnv *env, jobject obj, jlong scopePointer){
     SSL_METHOD *method;
     SSL_CTX *ctx;
