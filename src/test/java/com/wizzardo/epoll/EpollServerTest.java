@@ -2,6 +2,7 @@ package com.wizzardo.epoll;
 
 
 import com.wizzardo.epoll.readable.ReadableBuilder;
+import com.wizzardo.epoll.readable.ReadableByteArray;
 import com.wizzardo.epoll.readable.ReadableByteBuffer;
 import com.wizzardo.epoll.readable.ReadableData;
 import com.wizzardo.epoll.threadpool.ThreadPool;
@@ -12,6 +13,7 @@ import com.wizzardo.tools.security.MD5;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -35,6 +37,7 @@ public class EpollServerTest {
         int port = 9091;
         EpollServer server = new EpollServer(port);
 
+        server.setIoThreadsCount(1);
         server.start();
 
         Thread.sleep(500);
@@ -73,6 +76,7 @@ public class EpollServerTest {
             }
         };
 
+        server.setIoThreadsCount(1);
         server.start();
 
         try {
@@ -106,14 +110,15 @@ public class EpollServerTest {
                     @Override
                     public void onConnect(Connection connection) {
                         connection.write(new ReadableBuilder()
-                                .append(new ReadableByteBuffer(partOne))
-                                .append(new ReadableByteBuffer(partTwo))
+                                        .append(new ReadableByteBuffer(partOne))
+                                        .append(new ReadableByteBuffer(partTwo))
                                 , this);
                     }
                 };
             }
         };
 
+        server.setIoThreadsCount(1);
         server.start();
 
         try {
@@ -123,6 +128,55 @@ public class EpollServerTest {
             int r = in.read(b);
 
             Assert.assertEquals("Hello world!", new String(b, 0, r));
+        } catch (IOException e) {
+            e.printStackTrace();
+            assert e == null;
+        }
+        server.close();
+    }
+
+    @Test
+    public void builderTest_2() throws InterruptedException {
+        int port = 9094;
+        final ReadableData partOne = new ReadableByteArray("Hello ".getBytes());
+        final ReadableData partStatic = new ReadableByteBuffer(new ByteBufferWrapper("static ".getBytes()));
+        final ReadableData partTwo = new ReadableByteArray("world!".getBytes());
+
+        EpollServer server = new EpollServer(port) {
+            @Override
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
+
+                    @Override
+                    public void onConnect(Connection connection) {
+                        connection.write(new ReadableBuilder()
+                                        .append(partOne)
+                                        .append(partStatic)
+                                        .append(partTwo)
+                                , this);
+                        try {
+                            connection.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                };
+            }
+        };
+        server.setIoThreadsCount(1);
+        server.start();
+
+        try {
+            Socket s = new Socket("localhost", port);
+            InputStream in = s.getInputStream();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] b = new byte[1024];
+            int r;
+            while ((r = in.read(b)) != -1) {
+                out.write(b, 0, r);
+            }
+
+            Assert.assertEquals("Hello static world!", new String(out.toByteArray()));
         } catch (IOException e) {
             e.printStackTrace();
             assert e == null;
@@ -415,6 +469,7 @@ public class EpollServerTest {
             }
         };
 
+        server.setIoThreadsCount(1);
         server.start();
 
         String message = null;
@@ -468,6 +523,7 @@ public class EpollServerTest {
             }
         };
 
+        server.setIoThreadsCount(1);
         server.start();
 
         byte[] receive = new byte[10 * 1024 * 1024];
@@ -571,6 +627,7 @@ public class EpollServerTest {
             }
         };
 
+        server.setIoThreadsCount(1);
         server.start();
 
         try {
@@ -616,6 +673,7 @@ public class EpollServerTest {
             }
         };
         server.setTTL(500);
+        server.setIoThreadsCount(1);
 
         server.start();
         try {
@@ -697,6 +755,7 @@ public class EpollServerTest {
             }
         };
         server.setTTL(500);
+        server.setIoThreadsCount(1);
 
         server.start();
         try {

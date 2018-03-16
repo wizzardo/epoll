@@ -191,6 +191,7 @@ public class SslServerTest {
                 };
             }
         };
+        server.setIoThreadsCount(1);
         server.setTTL(500);
         server.loadCertificates("src/test/resources/ssl/test_cert.pem", "src/test/resources/ssl/test_key.pem");
 

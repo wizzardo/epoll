@@ -25,6 +25,7 @@ public class SizedDataServerTest {
                 connection.write(new ReadableByteArrayWithSize(new String(data).toUpperCase().getBytes()), this);
             }
         };
+        server.setIoThreadsCount(1);
         server.start();
 
         Socket socket = new Socket("localhost", port);
