@@ -186,6 +186,10 @@ public class Connection implements Cloneable, Closeable {
         return true;
     }
 
+    protected int write(ByteBufferWrapper wrapper, int off, int len) throws IOException {
+        return epoll.write(fd, wrapper.address, off, len);
+    }
+
     /*
      * @return true if connection is ready to write data
      */
