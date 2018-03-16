@@ -91,13 +91,13 @@ public class ReadableBuilder extends ReadableData {
         ReadableData[] parts = this.parts;
         ReadableData data = parts[position];
         int r = data.read(byteBuffer);
-        while (position < partsCount - 1 && data.isComplete() && byteBuffer.hasRemaining()) {
+        while (position < partsCount - 1 && data.isComplete()) {
             if (data.hasOwnBuffer()) {
                 position++;
                 break;
             }
             data = parts[++position];
-            if (data.hasOwnBuffer())
+            if (!byteBuffer.hasRemaining() || data.hasOwnBuffer())
                 break;
             r += data.read(byteBuffer);
         }
