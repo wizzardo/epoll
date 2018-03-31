@@ -90,6 +90,22 @@ public class ByteBufferWrapper {
     }
 
     public void offset(int offset) {
+        //TODO check usage of offset
         this.offset = offset;
+    }
+
+    @Override
+    public String toString() {
+        int position = buffer.position();
+        int limit = buffer.limit();
+        buffer.position(0);
+        buffer.limit(buffer.capacity());
+        byte[] bytes = new byte[buffer.limit()];
+        buffer.get(bytes);
+
+        buffer.clear();
+        buffer.limit(limit);
+        buffer.position(position);
+        return new String(bytes);
     }
 }

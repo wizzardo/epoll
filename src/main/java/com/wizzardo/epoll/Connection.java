@@ -187,7 +187,7 @@ public class Connection implements Cloneable, Closeable {
     }
 
     protected int write(ByteBufferWrapper wrapper, int off, int len) throws IOException {
-        return epoll.write(fd, wrapper.address, off, len);
+        return epoll.write(this, wrapper.address, off, len);
     }
 
     /*
@@ -198,7 +198,9 @@ public class Connection implements Cloneable, Closeable {
         bb.clear();
         int r = readable.read(bb);
         if (r > 0 && isAlive()) {
-            int written = epoll.write(this, bb.address, bb.offset(), r);
+//            int written = epoll.write(this, bb.address, bb.offset(), r);
+            int written = write(bb, bb.offset(), r);
+            bb.clear();
 //            System.out.println("write: " + written + " (" + readable.complete() + "/" + readable.length() + ")" + " to " + this);
             if (written != r) {
                 readable.unread(r - written);

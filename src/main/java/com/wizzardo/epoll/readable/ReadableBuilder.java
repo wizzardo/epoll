@@ -169,4 +169,13 @@ public class ReadableBuilder extends ReadableData {
             parts[i].close();
         }
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < partsCount; i++) {
+            sb.append(parts[i]);
+        }
+        return sb.toString();
+    }
 }

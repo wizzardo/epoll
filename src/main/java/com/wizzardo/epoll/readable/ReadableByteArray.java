@@ -57,4 +57,9 @@ public class ReadableByteArray extends ReadableData {
     public long remains() {
         return length + offset - position;
     }
+
+    @Override
+    public String toString() {
+        return new String(bytes, offset, length);
+    }
 }

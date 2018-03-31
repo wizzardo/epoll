@@ -353,14 +353,36 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
                                 ByteBufferWrapper src2,
                                 ByteBufferWrapper src3,
                                 ByteBufferWrapper src4) {
-        copyInto(dest.address + destPos,
+        copyInto4(dest.address + destPos,
                 src1.address, src1.capacity(),
                 src2.address, src2.capacity(),
                 src3.address, src3.capacity(),
                 src4.address, src4.capacity());
     }
 
-    private static native void copyInto(long dest, long s1, int l1, long s2, int l2, long s3, int l3, long s4, int l4);
+    public static void copyInto(ByteBufferWrapper dest, int destPos,
+                                ByteBufferWrapper src1,
+                                ByteBufferWrapper src2,
+                                ByteBufferWrapper src3) {
+        copyInto3(dest.address + destPos,
+                src1.address, src1.capacity(),
+                src2.address, src2.capacity(),
+                src3.address, src3.capacity());
+    }
+
+    public static void copyInto(ByteBufferWrapper dest, int destPos,
+                                ByteBufferWrapper src1,
+                                ByteBufferWrapper src2) {
+        copyInto2(dest.address + destPos,
+                src1.address, src1.capacity(),
+                src2.address, src2.capacity());
+    }
+
+    private static native void copyInto4(long dest, long s1, int l1, long s2, int l2, long s3, int l3, long s4, int l4);
+
+    private static native void copyInto3(long dest, long s1, int l1, long s2, int l2, long s3, int l3);
+
+    private static native void copyInto2(long dest, long s1, int l1, long s2, int l2);
 
     private static void loadLib(String name) throws IOException {
         String arch = System.getProperty("os.arch");

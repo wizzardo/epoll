@@ -133,4 +133,9 @@ public class ReadableByteBuffer extends ReadableData {
     public ReadableByteBuffer copy() {
         return new ReadableByteBuffer(buffer);
     }
+
+    @Override
+    public String toString() {
+        return super.toString();
+    }
 }
