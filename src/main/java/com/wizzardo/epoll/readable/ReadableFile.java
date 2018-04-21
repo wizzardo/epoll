@@ -46,16 +46,20 @@ public class ReadableFile extends ReadableData {
     @Override
     public int read(ByteBuffer byteBuffer) {
         try {
-            int limit = (int) (offset + length - position);
+            long length = offset + this.length - position;
+            if (length <= 0)
+                return 0;
+
             int oldLimit = byteBuffer.limit();
-            if (limit < byteBuffer.remaining())
-                byteBuffer.limit(limit + byteBuffer.position());
+            if (length <= byteBuffer.remaining())
+                byteBuffer.limit((int) (length + byteBuffer.position()));
 
             int read = channel.read(byteBuffer);
             byteBuffer.limit(oldLimit);
             if (read > 0)
                 position += read;
-            return read;
+
+            return Math.max(0, read);
         } catch (IOException e) {
             throw Unchecked.rethrow(e);
         }
