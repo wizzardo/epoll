@@ -236,7 +236,7 @@ public class Connection implements Cloneable, Closeable {
                 IOTools.close(data);
 
         if (ssl != 0)
-            epoll.closeSSL(ssl);
+            EpollSSL.closeSSL(ssl);
 
         epoll.close(this);
     }
@@ -330,7 +330,7 @@ public class Connection implements Cloneable, Closeable {
         if (!sslAccepted) {
             synchronized (this) {
                 if (!sslAccepted)
-                    sslAccepted = epoll.acceptSSL(ssl);
+                    sslAccepted = EpollSSL.acceptSSL(ssl);
             }
         } else
             return true;

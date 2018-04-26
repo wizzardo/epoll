@@ -22,6 +22,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Created by wizzardo on 12.05.15.
  */
 public class SslServerTest {
+
+    @Test
+    public void isSupported() {
+        Assert.assertTrue(EpollSSL.SUPPORTED);
+    }
+
     @Test
     public void httpsTest() throws InterruptedException, IOException, NoSuchAlgorithmException, KeyManagementException {
         int port = 8084;

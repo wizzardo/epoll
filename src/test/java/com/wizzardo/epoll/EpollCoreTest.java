@@ -1,5 +1,6 @@
 package com.wizzardo.epoll;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
@@ -10,6 +11,11 @@ import static org.junit.Assert.assertEquals;
  * Created by wizzardo on 24/04/16.
  */
 public class EpollCoreTest {
+
+    @Test
+    public void isSupported() {
+        Assert.assertTrue(EpollCore.SUPPORTED);
+    }
 
     @Test
     public void test_copy() {

@@ -2,6 +2,9 @@ apply plugin: 'java'
 
 repositories {
     jcenter()
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots/"
+    }
 }
 
 sourceCompatibility = 1.8
@@ -22,6 +25,8 @@ ext {
 
     linux64 = 'build/libepoll-core_x64.so'
     linux32 = 'build/libepoll-core_x32.so'
+    linux64SSL = 'build/libepoll-ssl_x64.so'
+    linux32SSL = 'build/libepoll-ssl_x32.so'
 }
 apply from: 'gradle/sonatype.gradle'
 
@@ -30,45 +35,64 @@ dependencies {
 //    compile files(
 //            '../Utils/build/libs/tools-all-0.13-SNAPSHOT.jar'
 //    )
-    compile 'com.wizzardo.tools:tools-io:0.19'
-    compile 'com.wizzardo.tools:tools-reflection:0.19'
+    compile 'com.wizzardo.tools:tools-io:0.20-SNAPSHOT'
+    compile 'com.wizzardo.tools:tools-reflection:0.20-SNAPSHOT'
 
     testCompile 'junit:junit:4.12'
-    testCompile 'com.wizzardo.tools:tools:0.19'
+    testCompile 'com.wizzardo.tools:tools:0.20-SNAPSHOT'
 }
 
 
 jar {
     dependsOn 'compileLinux32'
     dependsOn 'compileLinux64'
+    dependsOn 'compileSSLLinux32'
+    dependsOn 'compileSSLLinux64'
     from 'build/libepoll-core_x64.so'
     from 'build/libepoll-core_x32.so'
+    from 'build/libepoll-ssl_x64.so'
+    from 'build/libepoll-ssl_x32.so'
 }
 
-task jar32(type: Jar, dependsOn: ['compileLinux32']) {
+task jar32(type: Jar, dependsOn: ['compileLinux32', 'compileSSLLinux32']) {
     baseName = project.name + '-x32'
     from 'build/libepoll-core_x32.so'
+    from 'build/libepoll-ssl_x32.so'
     from sourceSets.main.output
 }
 
-task jar64(type: Jar, dependsOn: ['compileLinux64']) {
+task jar64(type: Jar, dependsOn: ['compileLinux64', 'compileSSLLinux64']) {
     baseName = project.name + '-x64'
     from 'build/libepoll-core_x64.so'
+    from 'build/libepoll-ssl_x64.so'
     from sourceSets.main.output
 }
 
 task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
     commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-lssl', '-lcrypto'
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
 }
 
 task compileLinux32(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
-    commandLine 'gcc', '-Ofast','-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32', '-lssl', '-lcrypto'
+    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32'
+}
+
+task compileSSLLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
+    workingDir cWorkDir
+    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux64SSL).absolutePath, '-I',
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollSSL.c', '-lssl', '-lcrypto'
+}
+
+task compileSSLLinux32(type: Exec, dependsOn: ['prepareHeaders']) {
+    workingDir cWorkDir
+    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux32SSL).absolutePath, '-I',
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollSSL.c', '-m32', '-lssl', '-lcrypto'
 }
 
 task prepareHeaders(type: Exec, dependsOn: ['compileJava']) {
     commandLine 'javah', '-classpath', 'build/classes/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollCore'
+    commandLine 'javah', '-classpath', 'build/classes/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollSSL'
 }

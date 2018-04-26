@@ -187,7 +187,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     @Override
     public void close() {
         if (isSecured())
-            releaseSslContext(scope);
+            EpollSSL.releaseSslContext(sslContextPointer);
         super.close();
     }
 
@@ -195,7 +195,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         if (isSecured()) {
             if (!connection.prepareSSL())
                 return 0;
-            return writeSSL(connection.fd, bbPointer, off, len, connection.ssl);
+            return EpollSSL.writeSSL(connection.fd, bbPointer, off, len, connection.ssl);
         } else
             return write(connection.fd, bbPointer, off, len);
     }
@@ -204,7 +204,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         if (isSecured()) {
             if (!connection.prepareSSL())
                 return 0;
-            return readSSL(connection.fd, bbPointer, off, len, connection.ssl);
+            return EpollSSL.readSSL(connection.fd, bbPointer, off, len, connection.ssl);
         } else
             return read(connection.fd, bbPointer, off, len);
     }
@@ -213,8 +213,8 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     public void loadCertificates(SslConfig sslConfig) {
         super.loadCertificates(sslConfig);
         if (isSecured()) {
-            initSSL(scope);
-            loadCertificates(scope, sslConfig.getCertFile(), sslConfig.getKeyFile());
+            sslContextPointer = EpollSSL.initSSL();
+            EpollSSL.loadCertificates(sslContextPointer, sslConfig.getCertFile(), sslConfig.getKeyFile());
         }
     }
 }

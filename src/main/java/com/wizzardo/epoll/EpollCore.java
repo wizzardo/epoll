@@ -1,15 +1,11 @@
 package com.wizzardo.epoll;
 
-import com.wizzardo.tools.io.FileTools;
 import com.wizzardo.tools.misc.Unchecked;
 import com.wizzardo.tools.reflection.FieldReflection;
 import com.wizzardo.tools.reflection.FieldReflectionFactory;
 import com.wizzardo.tools.reflection.UnsafeTools;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -31,6 +27,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     ByteBuffer events;
     volatile long scope;
+    volatile long sslContextPointer;
     protected volatile boolean running = true;
     protected volatile boolean started = false;
     protected final ByteBufferWrapper buffer = new ByteBufferWrapper(ByteBuffer.allocateDirect(16 * 1024));
@@ -44,10 +41,11 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     static {
         boolean supported = false;
         try {
-            loadLib("libepoll-core");
+            Utils.loadLib("libepoll-core");
             supported = true;
+            System.out.println("epoll-core lib loaded");
         } catch (Throwable e) {
-//            e.printStackTrace();
+            e.printStackTrace();
             System.out.println("epoll is not supported");
         }
         SUPPORTED = supported;
@@ -252,7 +250,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     long createSSL(int fd) {
-        return createSSL(scope, fd);
+        return EpollSSL.createSSL(sslContextPointer, fd);
     }
 
     public void loadCertificates(String certFile, String keyFile) {
@@ -271,18 +269,6 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     native boolean attach(long scope, int fd);
 
-    native void initSSL(long scope);
-
-    native long createSSL(long scope, int fd);
-
-    native void closeSSL(long ssl);
-
-    native boolean acceptSSL(long ssl);
-
-    native void releaseSslContext(long scope);
-
-    native void loadCertificates(long scope, String certFile, String keyFile);
-
     private native long init(int maxEvents, ByteBuffer events);
 
     private native void listen(long scope, String host, String port) throws IOException;
@@ -300,10 +286,6 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     native int read(int fd, long bbPointer, int off, int len) throws IOException;
 
     native int write(int fd, long bbPointer, int off, int len) throws IOException;
-
-    native int readSSL(int fd, long bbPointer, int off, int lenm, long ssl) throws IOException;
-
-    native int writeSSL(int fd, long bbPointer, int off, int len, long ssl) throws IOException;
 
     private native static long getAddress(ByteBuffer buffer);
 
@@ -401,25 +383,4 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     private static native void copyInto3(long dest, long s1, int l1, long s2, int l2, long s3, int l3);
 
     private static native void copyInto2(long dest, long s1, int l1, long s2, int l2);
-
-    private static void loadLib(String name) throws IOException {
-        String arch = System.getProperty("os.arch");
-        name = name + (arch.contains("64") ? "_x64" : "_x32") + ".so";
-        // have to use a stream
-        InputStream in = EpollCore.class.getResourceAsStream("/" + name);
-
-        File fileOut;
-        if (in == null) {
-            File file = new File(name);
-            if (file.exists())
-                in = new FileInputStream(file);
-            else
-                in = new FileInputStream(new File("build/" + name));
-
-        }
-        fileOut = File.createTempFile(name, "lib");
-        FileTools.bytes(fileOut, in);
-        System.load(fileOut.toString());
-        fileOut.deleteOnExit();
-    }
 }

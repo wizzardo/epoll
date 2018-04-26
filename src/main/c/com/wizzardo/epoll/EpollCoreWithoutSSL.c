@@ -533,20 +533,39 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyMemory(JNIEnv *env,
     memcpy((jbyte *) dest, (jbyte *) src, length);
 }
 
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyMemory2(JNIEnv *env, jclass cl, jlong src, jlong dest, int length){
+    memcpy((jbyte *) dest, (jbyte *) src, length);
+}
+
 JNIEXPORT void JNICALL JavaCritical_com_wizzardo_epoll_EpollCore_copyMemory(jlong src, jlong dest, int length){
     memcpy((jbyte *) dest, (jbyte *) src, length);
 }
 
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_put(JNIEnv *env, jclass cl, jbyteArray array, jint srcPos, jlong dest, int l){
+    jboolean isCopy;
+    //jint length = (*env)->GetArrayLength(env, array);
+    jbyte* buf = (*env)->GetByteArrayElements(env, array, &isCopy);
+
+    memcpy((jbyte *) dest, (jbyte *) (buf + srcPos), l);
+
+    (*env)->ReleaseByteArrayElements(env, array, buf, JNI_ABORT);
+}
+
+JNIEXPORT void JNICALL JavaCritical_com_wizzardo_epoll_EpollCore_put(jint length, jbyte* buf, jint srcPos, jlong dest, int l){
+    memcpy((jbyte *) dest, (jbyte *) (buf + srcPos), l);
+}
+
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyInto5(JNIEnv *env, jclass cl, jlong dest, jlong s1, int l1, jlong s2, int l2, jlong s3, int l3, jlong s4, int l4, jlong s5, int l5){
-    memcpy((jbyte *) dest, (jbyte *) s1, l1);
-    dest+=l1;
-    memcpy((jbyte *) dest, (jbyte *) s2, l2);
-    dest+=l2;
-    memcpy((jbyte *) dest, (jbyte *) s3, l3);
-    dest+=l3;
-    memcpy((jbyte *) dest, (jbyte *) s4, l4);
-    dest+=l4;
-    memcpy((jbyte *) dest, (jbyte *) s5, l5);
+//    memcpy((jbyte *) dest, (jbyte *) s1, l1);
+//    dest+=l1;
+//    memcpy((jbyte *) dest, (jbyte *) s2, l2);
+//    dest+=l2;
+//    memcpy((jbyte *) dest, (jbyte *) s3, l3);
+//    dest+=l3;
+//    memcpy((jbyte *) dest, (jbyte *) s4, l4);
+//    dest+=l4;
+//    memcpy((jbyte *) dest, (jbyte *) s5, l5);
+    JavaCritical_com_wizzardo_epoll_EpollCore_copyInto5(dest, s1, l1, s2, l2, s3, l3, s4, l4, s5, l5);
 }
 
 JNIEXPORT void JNICALL JavaCritical_com_wizzardo_epoll_EpollCore_copyInto5(jlong dest, jlong s1, int l1, jlong s2, int l2, jlong s3, int l3, jlong s4, int l4, jlong s5, int l5){
@@ -584,4 +603,36 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyInto2(JNIEnv *env, 
     dest+=l1;
     memcpy((jbyte *) dest, (jbyte *) s2, l2);
     dest+=l2;
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_initSSL(JNIEnv *env, jobject obj, jlong scopePointer){
+}
+
+JNIEXPORT jlong JNICALL Java_com_wizzardo_epoll_EpollCore_createSSL(JNIEnv *env, jobject obj, jlong scopePointer, jint fd){
+    return -1;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_acceptSSL(JNIEnv *env, jobject obj, jlong sslPointer){
+    return JNI_FALSE;
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_loadCertificates(JNIEnv *env, jobject obj, jlong scopePointer, jstring certFile, jstring keyFile){
+}
+
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_readSSL(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length, jlong sslPointer)
+{
+    return -1;
+}
+
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_writeSSL(JNIEnv *env, jclass clazz, jint fd, jlong bb, jint offset, jint length, jlong sslPointer)
+{
+    return -1;
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_closeSSL(JNIEnv *env, jclass clazz, jlong sslPointer)
+{
+}
+
+JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_releaseSslContext(JNIEnv *env, jclass clazz, jlong scopePointer)
+{
 }
