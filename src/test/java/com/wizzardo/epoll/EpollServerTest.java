@@ -154,11 +154,7 @@ public class EpollServerTest {
                                         .append(partStatic)
                                         .append(partTwo)
                                 , this);
-                        try {
-                            connection.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                        connection.close();
                     }
                 };
             }

@@ -99,14 +99,11 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
             iterator.remove();
             if (entry.getValue().isAlive() && entry.getValue().isInvalid(eventTime)) {
                 connection = deleteConnection(entry.getValue().fd);
-                if (connection != null)
-                    try {
+                if (connection != null) {
 //                        System.out.println("close by timeout: " + connection + "\t\tnow: " + eventTime + "\t" + System.currentTimeMillis());
 //                        System.out.println("closed: " + entry.getValue() + "\tlast event was: " + entry.getValue().getLastEvent());
-                        connection.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    connection.close();
+                }
             }
         }
     }
@@ -152,11 +149,15 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         }
     }
 
-    void close(T connection) throws IOException {
+    void close(T connection) {
         connection.setIsAlive(false);
         close(connection.fd);
-        onDisconnect(connection);
         deleteConnection(connection.fd);
+        try {
+            onDisconnect(connection);
+        } catch (Exception e) {
+            onError(connection, e);
+        }
     }
 
     private void onAttach(T connection) {

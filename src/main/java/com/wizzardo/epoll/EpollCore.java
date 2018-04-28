@@ -225,11 +225,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
             synchronized (connection) {
                 if (connection.isAlive() && connection.getMode() != mode)
                     if (!mod(scope, connection.fd, mode))
-                        try {
-                            connection.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                        connection.close();
                     else
                         connection.setMode(mode);
             }

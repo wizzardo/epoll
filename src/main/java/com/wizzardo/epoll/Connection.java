@@ -119,11 +119,8 @@ public class Connection implements Cloneable, Closeable {
                     onWriteData(readable, false);
                 } catch (Exception e) {
                     e.printStackTrace();
-                    try {
-                        close();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
+                    close();
+                    return false;
                 } finally {
                     writer.set(null);
                 }
@@ -174,11 +171,8 @@ public class Connection implements Cloneable, Closeable {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                try {
-                    close();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
+                close();
+                return false;
             } finally {
                 writer.set(null);
             }
@@ -230,7 +224,7 @@ public class Connection implements Cloneable, Closeable {
         return bb.buffer();
     }
 
-    public void close() throws IOException {
+    public void close() {
         if (sending != null)
             for (ReadableData data : sending)
                 IOTools.close(data);
