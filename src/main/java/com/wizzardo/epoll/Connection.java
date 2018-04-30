@@ -188,10 +188,13 @@ public class Connection implements Cloneable, Closeable {
      * @return true if connection is ready to write data
      */
     protected boolean actualWrite(ReadableData readable, ByteBufferProvider bufferProvider) throws IOException {
+        if (!isAlive())
+            return false;
+
         ByteBufferWrapper bb = readable.getByteBuffer(bufferProvider);
         bb.clear();
         int r = readable.read(bb);
-        if (r > 0 && isAlive()) {
+        if (r > 0) {
 //            int written = epoll.write(this, bb.address, bb.offset(), r);
             int written = write(bb, bb.offset(), r);
             bb.clear();
