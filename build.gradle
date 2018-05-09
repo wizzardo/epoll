@@ -71,7 +71,7 @@ task jar64(type: Jar, dependsOn: ['compileLinux64', 'compileSSLLinux64']) {
 
 task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
-    commandLine 'gcc', '-g', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
+    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
 }
 
