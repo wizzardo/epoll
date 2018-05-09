@@ -14,7 +14,7 @@ targetCompatibility = 1.8
 archivesBaseName = "epoll"
 
 group = 'com.wizzardo'
-version = '0.3.1'
+version = '0.3.2'
 
 ext {
     descriptionString = 'Event-based socket server, which uses epoll'
@@ -36,11 +36,11 @@ dependencies {
 //    compile files(
 //            '../Utils/build/libs/tools-all-0.13-SNAPSHOT.jar'
 //    )
-    compile 'com.wizzardo.tools:tools-io:0.20'
-    compile 'com.wizzardo.tools:tools-reflection:0.20'
+    compile 'com.wizzardo.tools:tools-io:0.21'
+    compile 'com.wizzardo.tools:tools-reflection:0.21'
 
     testCompile 'junit:junit:4.12'
-    testCompile 'com.wizzardo.tools:tools:0.20'
+    testCompile 'com.wizzardo.tools:tools:0.21'
 }
 
 
