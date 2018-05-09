@@ -2,6 +2,7 @@ apply plugin: 'java'
 
 repositories {
     jcenter()
+    mavenCentral()
     maven {
         url "https://oss.sonatype.org/content/repositories/snapshots/"
     }
@@ -13,7 +14,7 @@ targetCompatibility = 1.8
 archivesBaseName = "epoll"
 
 group = 'com.wizzardo'
-version = '0.3'
+version = '0.3.1-SNAPSHOT'
 
 ext {
     descriptionString = 'Event-based socket server, which uses epoll'
@@ -70,7 +71,7 @@ task jar64(type: Jar, dependsOn: ['compileLinux64', 'compileSSLLinux64']) {
 
 task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
     workingDir cWorkDir
-    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
+    commandLine 'gcc', '-g', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
 }
 

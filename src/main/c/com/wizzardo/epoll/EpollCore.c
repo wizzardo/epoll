@@ -533,9 +533,9 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyMemory(JNIEnv *env,
     memcpy((jbyte *) dest, (jbyte *) src, length);
 }
 
-JNIEXPORT void JNICALL JavaCritical_com_wizzardo_epoll_EpollCore_copyMemory(jlong src, jlong dest, int length){
-    memcpy((jbyte *) dest, (jbyte *) src, length);
-}
+//JNIEXPORT void JNICALL JavaCritical_com_wizzardo_epoll_EpollCore_copyMemory(jlong src, jlong dest, int length){
+//    memcpy((jbyte *) dest, (jbyte *) src, length);
+//}
 
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyInto5(JNIEnv *env, jclass cl, jlong dest, jlong s1, int l1, jlong s2, int l2, jlong s3, int l3, jlong s4, int l4, jlong s5, int l5){
     memcpy((jbyte *) dest, (jbyte *) s1, l1);
@@ -549,17 +549,17 @@ JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyInto5(JNIEnv *env, 
     memcpy((jbyte *) dest, (jbyte *) s5, l5);
 }
 
-JNIEXPORT void JNICALL JavaCritical_com_wizzardo_epoll_EpollCore_copyInto5(jlong dest, jlong s1, int l1, jlong s2, int l2, jlong s3, int l3, jlong s4, int l4, jlong s5, int l5){
-    memcpy((jbyte *) dest, (jbyte *) s1, l1);
-    dest+=l1;
-    memcpy((jbyte *) dest, (jbyte *) s2, l2);
-    dest+=l2;
-    memcpy((jbyte *) dest, (jbyte *) s3, l3);
-    dest+=l3;
-    memcpy((jbyte *) dest, (jbyte *) s4, l4);
-    dest+=l4;
-    memcpy((jbyte *) dest, (jbyte *) s5, l5);
-}
+//JNIEXPORT void JNICALL JavaCritical_com_wizzardo_epoll_EpollCore_copyInto5(jlong dest, jlong s1, int l1, jlong s2, int l2, jlong s3, int l3, jlong s4, int l4, jlong s5, int l5){
+//    memcpy((jbyte *) dest, (jbyte *) s1, l1);
+//    dest+=l1;
+//    memcpy((jbyte *) dest, (jbyte *) s2, l2);
+//    dest+=l2;
+//    memcpy((jbyte *) dest, (jbyte *) s3, l3);
+//    dest+=l3;
+//    memcpy((jbyte *) dest, (jbyte *) s4, l4);
+//    dest+=l4;
+//    memcpy((jbyte *) dest, (jbyte *) s5, l5);
+//}
 
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_copyInto4(JNIEnv *env, jclass cl, jlong dest, jlong s1, int l1, jlong s2, int l2, jlong s3, int l3, jlong s4, int l4){
     memcpy((jbyte *) dest, (jbyte *) s1, l1);
