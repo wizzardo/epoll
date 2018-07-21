@@ -336,7 +336,7 @@ public class EpollServerTest {
     @Test
     public void maxEventsTest() throws InterruptedException {
         final int port = 9092;
-        final AtomicInteger connections = new AtomicInteger();
+        final AtomicInteger connectionsCounter = new AtomicInteger();
         EpollServer server = new EpollServer(null, port, 200) {
 
             @Override
@@ -357,13 +357,13 @@ public class EpollServerTest {
 
                     @Override
                     public void onConnect(Connection connection) {
-                        connections.incrementAndGet();
+                        connectionsCounter.incrementAndGet();
 //                        System.out.println("onConnect " + connections.get());
                     }
 
                     @Override
                     public void onDisconnect(Connection connection) {
-                        connections.decrementAndGet();
+                        connectionsCounter.decrementAndGet();
 //                        System.out.println("onDisconnect " + connections.get());
                     }
                 };
@@ -417,7 +417,7 @@ public class EpollServerTest {
         latch.await();
         Thread.sleep(100);
         Assert.assertEquals(threads, counter.get());
-        Assert.assertEquals(0, connections.get());
+        Assert.assertEquals(0, connectionsCounter.get());
         System.out.println("total bytes were sent: " + total.get() * 2);
         time = System.currentTimeMillis() - time;
         System.out.println("for " + time + "ms");
