@@ -25,6 +25,11 @@ struct Scope {
     struct epoll_event *events;
 };
 
+typedef struct node {
+    int value;
+    struct Node * next;
+} Node;
+
 
 int create_and_bind(JNIEnv *env, const char *host, const char *port)
 {
@@ -391,7 +396,7 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopListening(JNIEn
 }
 
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jobject obj, jlong scopePointer, jstring host, jint port)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jobject obj, jlong scopePointer, jstring host, jint port, jint divider, jint number)
 {
 //    struct Scope *scope = (struct Scope *)scopePointer;
 //    struct epoll_event event = scope->event;
@@ -404,6 +409,53 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
         printf("Error : Could not create socket \n");
         throwException(env, strerror(errno));
         return -1;
+    }
+
+    if(tcp_socket % divider != number){
+        Node * head = NULL;
+        Node * last = NULL;
+
+        do {
+            if(head == NULL){
+                last = head = malloc(sizeof(Node));
+                if (head == NULL) {
+                    close(tcp_socket);
+                    return -1;
+                }
+            } else {
+                last -> next = malloc(sizeof(Node));
+                if (last -> next == NULL) {
+                    Node * current = head;
+                    while (current != NULL) {
+                        close(current->value);
+                        current = current->next;
+                    }
+                    return -1;
+                }
+                last = last -> next;
+            }
+
+            last->value = tcp_socket;
+            last->next = NULL;
+
+            if((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0){
+                Node * current = head;
+                while (current != NULL) {
+                    close(current->value);
+                    current = current->next;
+                }
+                printf("Error : Could not create socket \n");
+                throwException(env, strerror(errno));
+                return -1;
+            }
+
+        } while(tcp_socket % divider != number);
+
+        Node * current = head;
+        while (current != NULL) {
+            close(current->value);
+            current = current->next;
+        }
     }
 
     int on = 1;

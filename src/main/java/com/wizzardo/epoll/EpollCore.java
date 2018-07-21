@@ -195,11 +195,17 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
             InetAddress address = InetAddress.getByName(host);
             host = address.getHostAddress();
         }
-        T connection = createConnection(connect(scope, host, port), 0, port);
-        connection.setIpString(host);
-        synchronized (this) {
+        T connection;
+        if (Thread.currentThread() instanceof IOThread) {
+            IOThread ioThread = (IOThread) Thread.currentThread();
+            int fd = ioThread.connect(scope, host, port, ioThread.divider, ioThread.number);
+            connection = createConnection(fd, 0, port);
+            ioThread.putConnection(connection, System.nanoTime() * 1000);
+        } else {
+            connection = createConnection(connect(scope, host, port, 1, 0), 0, port);
             putConnection(connection, System.nanoTime() * 1000);
         }
+        connection.setIpString(host);
         return connection;
     }
 
@@ -275,7 +281,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     private native int acceptConnections(long scope);
 
-    private native int connect(long scope, String host, int port);
+    native int connect(long scope, String host, int port, int divider, int number);
 
     private native boolean mod(long scope, int fd, int mode);
 
