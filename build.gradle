@@ -14,7 +14,7 @@ targetCompatibility = 1.8
 archivesBaseName = "epoll"
 
 group = 'com.wizzardo'
-version = '0.3.2'
+version = '0.3.3-SNAPSHOT'
 
 ext {
     descriptionString = 'Event-based socket server, which uses epoll'
@@ -69,31 +69,34 @@ task jar64(type: Jar, dependsOn: ['compileLinux64', 'compileSSLLinux64']) {
     from sourceSets.main.output
 }
 
-task compileLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
+task compileLinux64(type: Exec, dependsOn: ['prepareCoreHeaders']) {
     workingDir cWorkDir
-    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
+    commandLine 'gcc', '-g', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
 }
 
-task compileLinux32(type: Exec, dependsOn: ['prepareHeaders']) {
+task compileLinux32(type: Exec, dependsOn: ['prepareCoreHeaders']) {
     workingDir cWorkDir
     commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32'
 }
 
-task compileSSLLinux64(type: Exec, dependsOn: ['prepareHeaders']) {
+task compileSSLLinux64(type: Exec, dependsOn: ['prepareSSLHeaders']) {
     workingDir cWorkDir
     commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux64SSL).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollSSL.c', '-lssl', '-lcrypto'
 }
 
-task compileSSLLinux32(type: Exec, dependsOn: ['prepareHeaders']) {
+task compileSSLLinux32(type: Exec, dependsOn: ['prepareSSLHeaders']) {
     workingDir cWorkDir
     commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux32SSL).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollSSL.c', '-m32', '-lssl', '-lcrypto'
 }
 
-task prepareHeaders(type: Exec, dependsOn: ['compileJava']) {
+task prepareCoreHeaders(type: Exec, dependsOn: ['compileJava']) {
     commandLine 'javah', '-classpath', 'build/classes/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollCore'
+}
+
+task prepareSSLHeaders(type: Exec, dependsOn: ['compileJava']) {
     commandLine 'javah', '-classpath', 'build/classes/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollSSL'
 }
