@@ -14,11 +14,11 @@ import static com.wizzardo.epoll.Utils.readInt;
  * Date: 6/25/14
  */
 public class IOThread<T extends Connection> extends EpollCore<T> {
-    private final int number;
-    private final int divider;
-    private T[] connections = (T[]) new Connection[1000];
-    private Map<Integer, T> newConnections = new ConcurrentHashMap<Integer, T>();
-    private LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
+    protected final int number;
+    protected final int divider;
+    protected T[] connections = (T[]) new Connection[1000];
+    protected Map<Integer, T> newConnections = new ConcurrentHashMap<Integer, T>();
+    protected LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
 
     public IOThread(int number, int divider) {
         this.number = number;
@@ -169,20 +169,23 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     public void onError(T connection, Exception e) {
-        e.printStackTrace();
+        connection.onError(e);
     }
 
     public void onRead(T connection) {
+        connection.onRead(this);
     }
 
     public void onWrite(T connection) {
-        connection.write(this);
+        connection.onWrite(this);
     }
 
     public void onConnect(T connection) {
+        connection.onConnect(this);
     }
 
     public void onDisconnect(T connection) {
+        connection.onDisconnect();
     }
 
     @Override

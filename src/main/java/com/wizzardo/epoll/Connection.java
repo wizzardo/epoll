@@ -4,9 +4,7 @@ import com.wizzardo.epoll.readable.ReadableByteArray;
 import com.wizzardo.epoll.readable.ReadableData;
 import com.wizzardo.tools.io.IOTools;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.Deque;
 import java.util.Queue;
@@ -28,6 +26,10 @@ public class Connection implements Cloneable, Closeable {
     protected volatile long ssl;
     protected volatile boolean sslAccepted;
     protected final AtomicReference<ByteBufferProvider> writer = new AtomicReference<>();
+    protected EpollInputStream inputStream;
+    protected EpollOutputStream outputStream;
+    protected volatile InputListener<Connection> inputListener;
+    protected volatile OutputListener<Connection> outputListener;
     private volatile int mode = 1;
     private volatile boolean alive = true;
     volatile boolean readyToRead = true;
@@ -333,5 +335,80 @@ public class Connection implements Cloneable, Closeable {
             return true;
 
         return sslAccepted;
+    }
+
+    public void onRead(ByteBufferProvider bufferProvider) {
+        if (inputListener != null)
+            inputListener.onReadyToRead(this, bufferProvider);
+    }
+
+    public void onWrite(ByteBufferProvider bufferProvider) {
+        if (outputListener != null)
+            outputListener.onReadyToWrite(this, bufferProvider);
+
+        write(bufferProvider);
+    }
+
+    public void onConnect(ByteBufferProvider bufferProvider) {
+        if (inputListener != null)
+            inputListener.onReady(this, bufferProvider);
+
+        if (outputListener != null)
+            outputListener.onReady(this, bufferProvider);
+    }
+
+    public void onDisconnect() {
+    }
+
+    public void onError(Exception e) {
+        e.printStackTrace();
+    }
+
+    public InputListener<Connection> getInputListener() {
+        return inputListener;
+    }
+
+    public OutputListener<Connection> getOutputListener() {
+        return outputListener;
+    }
+
+    protected EpollInputStream createInputStream(byte[] buffer, int currentOffset, int currentLimit, long contentLength) {
+        return new EpollInputStream(this, buffer, currentOffset, currentLimit, contentLength);
+    }
+
+    protected EpollOutputStream createOutputStream() {
+        return new EpollOutputStream(this);
+    }
+
+    public EpollInputStream getInputStream() {
+        if (inputStream == null) {
+            byte[] buffer = new byte[16 * 1024];
+            inputStream = new EpollInputStream(this, buffer);
+            inputListener = (connection, bufferProvider) -> inputStream.wakeUp();
+        }
+
+        return inputStream;
+    }
+
+    public void flushOutputStream() throws IOException {
+        if (outputStream != null)
+            outputStream.flush();
+    }
+
+    public EpollOutputStream getOutputStream() {
+        if (outputStream == null) {
+            outputStream = createOutputStream();
+            outputListener = (connection, bufferProvider) -> outputStream.wakeUp();
+        }
+
+        return outputStream;
+    }
+
+    public void setInputListener(InputListener<Connection> inputListener) {
+        this.inputListener = inputListener;
+    }
+
+    public void setOutputListener(OutputListener<Connection> outputListener) {
+        this.outputListener = outputListener;
     }
 }
