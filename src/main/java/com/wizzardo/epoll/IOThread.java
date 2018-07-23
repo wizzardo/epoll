@@ -172,15 +172,15 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connection.onError(e);
     }
 
-    public void onRead(T connection) {
+    public void onRead(T connection) throws IOException {
         connection.onRead(this);
     }
 
-    public void onWrite(T connection) {
+    public void onWrite(T connection) throws IOException {
         connection.onWrite(this);
     }
 
-    public void onConnect(T connection) {
+    public void onConnect(T connection) throws IOException {
         connection.onConnect(this);
     }
 

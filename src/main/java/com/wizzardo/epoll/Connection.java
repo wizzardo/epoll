@@ -337,19 +337,19 @@ public class Connection implements Cloneable, Closeable {
         return sslAccepted;
     }
 
-    public void onRead(ByteBufferProvider bufferProvider) {
+    public void onRead(ByteBufferProvider bufferProvider) throws IOException {
         if (inputListener != null)
             inputListener.onReadyToRead(this, bufferProvider);
     }
 
-    public void onWrite(ByteBufferProvider bufferProvider) {
+    public void onWrite(ByteBufferProvider bufferProvider) throws IOException {
         if (outputListener != null)
             outputListener.onReadyToWrite(this, bufferProvider);
 
         write(bufferProvider);
     }
 
-    public void onConnect(ByteBufferProvider bufferProvider) {
+    public void onConnect(ByteBufferProvider bufferProvider) throws IOException {
         if (inputListener != null)
             inputListener.onReady(this, bufferProvider);
 

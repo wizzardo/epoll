@@ -190,6 +190,10 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     public T connect(String host, int port) throws IOException {
+        return connect(host, port, this::createConnection);
+    }
+
+    public T connect(String host, int port, ConnectionFactory<T> factory) throws IOException {
         boolean resolve = !IP_PATTERN.matcher(host).matches();
         if (resolve) {
             InetAddress address = InetAddress.getByName(host);
@@ -199,10 +203,10 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         if (Thread.currentThread() instanceof IOThread) {
             IOThread ioThread = (IOThread) Thread.currentThread();
             int fd = ioThread.connect(scope, host, port, ioThread.divider, ioThread.number);
-            connection = createConnection(fd, 0, port);
+            connection = factory.create(fd, 0, port);
             ioThread.putConnection(connection, System.nanoTime() * 1000);
         } else {
-            connection = createConnection(connect(scope, host, port, 1, 0), 0, port);
+            connection = factory.create(connect(scope, host, port, 1, 0), 0, port);
             putConnection(connection, System.nanoTime() * 1000);
         }
         connection.setIpString(host);

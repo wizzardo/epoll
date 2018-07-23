@@ -1,8 +1,10 @@
 package com.wizzardo.epoll;
 
-public interface OutputListener<C extends Connection> {
-    void onReadyToWrite(C connection, ByteBufferProvider bufferProvider);
+import java.io.IOException;
 
-    default void onReady(C connection, ByteBufferProvider bufferProvider) {
+public interface OutputListener<C extends Connection> {
+    void onReadyToWrite(C connection, ByteBufferProvider bufferProvider) throws IOException;
+
+    default void onReady(C connection, ByteBufferProvider bufferProvider) throws IOException {
     }
 }

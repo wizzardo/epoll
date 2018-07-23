@@ -615,7 +615,7 @@ public class EpollServerTest {
                     }
 
                     @Override
-                    public void onWrite(Connection connection) {
+                    public void onWrite(Connection connection) throws IOException {
                         onWrite.incrementAndGet();
                         super.onWrite(connection);
                     }
