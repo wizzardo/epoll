@@ -419,7 +419,7 @@ public class Connection implements Cloneable, Closeable {
         this.connectListener = listener;
     }
 
-    public void onClose(DisconnectListener<Connection> listener) {
+    public void onDisconnect(DisconnectListener<Connection> listener) {
         this.disconnectListener = listener;
     }
 
