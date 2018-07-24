@@ -169,7 +169,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     public void onError(T connection, Exception e) {
-        connection.onError(e);
+        connection.onError(this, e);
     }
 
     public void onRead(T connection) throws IOException {
@@ -184,8 +184,8 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connection.onConnect(this);
     }
 
-    public void onDisconnect(T connection) {
-        connection.onDisconnect();
+    public void onDisconnect(T connection) throws IOException {
+        connection.onDisconnect(this);
     }
 
     @Override

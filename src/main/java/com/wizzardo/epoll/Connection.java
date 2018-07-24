@@ -28,8 +28,11 @@ public class Connection implements Cloneable, Closeable {
     protected final AtomicReference<ByteBufferProvider> writer = new AtomicReference<>();
     protected EpollInputStream inputStream;
     protected EpollOutputStream outputStream;
-    protected volatile InputListener<Connection> inputListener;
-    protected volatile OutputListener<Connection> outputListener;
+    protected ReadListener<Connection> readListener;
+    protected WriteListener<Connection> writeListener;
+    protected ConnectListener<Connection> connectListener;
+    protected DisconnectListener<Connection> disconnectListener;
+    protected ErrorListener<Connection> errorListener;
     private volatile int mode = 1;
     private volatile boolean alive = true;
     volatile boolean readyToRead = true;
@@ -338,38 +341,38 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public void onRead(ByteBufferProvider bufferProvider) throws IOException {
-        if (inputListener != null)
-            inputListener.onReadyToRead(this, bufferProvider);
+        if (readListener != null)
+            readListener.onRead(this, bufferProvider);
     }
 
     public void onWrite(ByteBufferProvider bufferProvider) throws IOException {
-        if (outputListener != null)
-            outputListener.onReadyToWrite(this, bufferProvider);
+        if (writeListener != null)
+            writeListener.onWrite(this, bufferProvider);
 
         write(bufferProvider);
     }
 
     public void onConnect(ByteBufferProvider bufferProvider) throws IOException {
-        if (inputListener != null)
-            inputListener.onReady(this, bufferProvider);
-
-        if (outputListener != null)
-            outputListener.onReady(this, bufferProvider);
+        if (connectListener != null)
+            connectListener.onConnect(this, bufferProvider);
     }
 
-    public void onDisconnect() {
+    public void onDisconnect(ByteBufferProvider bufferProvider) throws IOException {
+        if (disconnectListener != null)
+            disconnectListener.onDisconnect(this, bufferProvider);
     }
 
-    public void onError(Exception e) {
-        e.printStackTrace();
+    public void onError(ByteBufferProvider bufferProvider, Exception e) throws IOException {
+        if (errorListener != null)
+            errorListener.onError(this, e, bufferProvider);
     }
 
-    public InputListener<Connection> getInputListener() {
-        return inputListener;
+    public ReadListener<Connection> getReadListener() {
+        return readListener;
     }
 
-    public OutputListener<Connection> getOutputListener() {
-        return outputListener;
+    public WriteListener<Connection> getWriteListener() {
+        return writeListener;
     }
 
     protected EpollInputStream createInputStream(byte[] buffer, int currentOffset, int currentLimit, long contentLength) {
@@ -384,13 +387,13 @@ public class Connection implements Cloneable, Closeable {
         if (inputStream == null) {
             byte[] buffer = new byte[16 * 1024];
             inputStream = new EpollInputStream(this, buffer);
-            inputListener = (connection, bufferProvider) -> inputStream.wakeUp();
+            readListener = (connection, bufferProvider) -> inputStream.wakeUp();
         }
 
         return inputStream;
     }
 
-    public void flushOutputStream() throws IOException {
+    public void flush() throws IOException {
         if (outputStream != null)
             outputStream.flush();
     }
@@ -398,17 +401,29 @@ public class Connection implements Cloneable, Closeable {
     public EpollOutputStream getOutputStream() {
         if (outputStream == null) {
             outputStream = createOutputStream();
-            outputListener = (connection, bufferProvider) -> outputStream.wakeUp();
+            writeListener = (connection, bufferProvider) -> outputStream.wakeUp();
         }
 
         return outputStream;
     }
 
-    public void setInputListener(InputListener<Connection> inputListener) {
-        this.inputListener = inputListener;
+    public void onRead(ReadListener<Connection> listener) {
+        this.readListener = listener;
     }
 
-    public void setOutputListener(OutputListener<Connection> outputListener) {
-        this.outputListener = outputListener;
+    public void onWrite(WriteListener<Connection> listener) {
+        this.writeListener = listener;
+    }
+
+    public void onConnect(ConnectListener<Connection> listener) {
+        this.connectListener = listener;
+    }
+
+    public void onClose(DisconnectListener<Connection> listener) {
+        this.disconnectListener = listener;
+    }
+
+    public void onError(ErrorListener<Connection> listener) {
+        this.errorListener = listener;
     }
 }
