@@ -74,7 +74,10 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
             } else
                 throw new IllegalStateException("this thread only for read/write/close events, event: " + event);
         } catch (Exception e) {
-            onError(connection, e);
+            try {
+                onError(connection, e);
+            } catch (IOException ignored) {
+            }
         }
 
         Long key = connection.setLastEvent(now);
@@ -156,19 +159,25 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         try {
             onDisconnect(connection);
         } catch (Exception e) {
-            onError(connection, e);
+            try {
+                onError(connection, e);
+            } catch (IOException ignored) {
+            }
         }
     }
 
-    private void onAttach(T connection) {
+    protected void onAttach(T connection) {
         try {
             onConnect(connection);
         } catch (Exception e) {
-            onError(connection, e);
+            try {
+                onError(connection, e);
+            } catch (IOException ignored) {
+            }
         }
     }
 
-    public void onError(T connection, Exception e) {
+    public void onError(T connection, Exception e) throws IOException {
         connection.onError(this, e);
     }
 
