@@ -275,7 +275,7 @@ public class Connection implements Cloneable, Closeable {
             epoll.mod(this, 0);
     }
 
-    public void onWriteData(ReadableData readable, boolean hasMore) {
+    public void onWriteData(ReadableData readable, boolean hasMore) throws IOException {
     }
 
     @Override
