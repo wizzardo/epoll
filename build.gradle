@@ -94,9 +94,9 @@ task compileSSLLinux32(type: Exec, dependsOn: ['prepareSSLHeaders']) {
 }
 
 task prepareCoreHeaders(type: Exec, dependsOn: ['compileJava']) {
-    commandLine 'javah', '-classpath', 'build/classes/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollCore'
+    commandLine 'javah', '-classpath', 'build/classes/java/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollCore'
 }
 
 task prepareSSLHeaders(type: Exec, dependsOn: ['compileJava']) {
-    commandLine 'javah', '-classpath', 'build/classes/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollSSL'
+    commandLine 'javah', '-classpath', 'build/classes/java/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollSSL'
 }
