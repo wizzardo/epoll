@@ -346,10 +346,11 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public void onWrite(ByteBufferProvider bufferProvider) throws IOException {
+        if (!write(bufferProvider))
+            return;
+
         if (writeListener != null)
             writeListener.onWrite(this, bufferProvider);
-
-        write(bufferProvider);
     }
 
     public void onConnect(ByteBufferProvider bufferProvider) throws IOException {

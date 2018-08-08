@@ -99,6 +99,9 @@ public class EpollInputStream extends InputStream {
 
     protected void waitForData(ByteBufferProvider bufferProvider) throws IOException {
         if (limit == 0) {
+            if (Thread.currentThread() instanceof IOThread)
+                throw new IllegalStateException("IOThread cannot be used in " + this.getClass().getSimpleName());
+
             while (waiting = (limit = connection.read(buffer, bufferProvider)) == 0) {
                 synchronized (this) {
                     while (waiting) {

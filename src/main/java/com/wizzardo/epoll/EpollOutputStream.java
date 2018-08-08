@@ -53,6 +53,9 @@ public class EpollOutputStream extends OutputStream {
 
     protected void waitFor() {
         if (waiting) {
+            if (Thread.currentThread() instanceof IOThread)
+                throw new IllegalStateException("IOThread cannot be used in " + this.getClass().getSimpleName());
+
             synchronized (this) {
                 while (waiting) {
                     try {
