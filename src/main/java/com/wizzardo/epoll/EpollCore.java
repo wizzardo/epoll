@@ -91,7 +91,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         byte[] newConnections = new byte[eventsBuffer.capacity()];
 
         if (ioThreadsCount == 0) {
-            IOThread<T> ioThread = createIOThread(1, 1);
+            IOThread<? extends T> ioThread = createIOThread(1, 1);
             ioThreadsCount = 1;
             ioThread.scope = scope;
             ioThreads = new IOThread[]{ioThread};
@@ -251,7 +251,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         return (T) new Connection(fd, ip, port);
     }
 
-    protected IOThread<T> createIOThread(int number, int divider) {
+    protected IOThread<? extends T> createIOThread(int number, int divider) {
         return new IOThread<T>(number, divider);
     }
 
