@@ -98,10 +98,12 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
             ioThreads[0].setTTL(ttl);
             ioThreads[0].loadCertificates(sslConfig);
 
+            long prev = System.nanoTime();
             while (running) {
                 try {
                     eventsBuffer.position(0);
-                    Long now = System.nanoTime() * 1000;
+                    long now = System.nanoTime() * 1000;
+                    long nowMinusSecond = now - 1_000_000_000_000L; // 1 sec
                     int r = waitForEvents(500);
                     eventsBuffer.limit(r);
                     eventsBuffer.get(events, 0, r);
@@ -112,11 +114,14 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
                             acceptConnections(newConnections, now);
                         } else {
                             int fd = readInt(events, i + 1);
-                            ioThread.handleEvent(fd, event, now);
+                            ioThread.handleEvent(fd, event, now, nowMinusSecond);
                         }
                         i += 5;
                     }
-                    ioThread.handleTimeOuts(now);
+                    if (nowMinusSecond > prev) {
+                        ioThread.handleTimeOuts(now);
+                        prev = now;
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -127,7 +132,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         while (running) {
             try {
                 eventsBuffer.position(0);
-                Long now = System.nanoTime() * 1000;
+                long now = System.nanoTime() * 1000;
                 int r = waitForEvents(500);
                 eventsBuffer.limit(r);
                 eventsBuffer.get(events, 0, r);
@@ -171,7 +176,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         }
     }
 
-    private Long acceptConnections(byte[] buffer, Long eventTime) throws IOException {
+    private Long acceptConnections(byte[] buffer, long eventTime) throws IOException {
         events.position(0);
         int k = acceptConnections(scope);
         events.limit(k);
@@ -185,7 +190,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         return eventTime;
     }
 
-    private void putConnection(T connection, Long eventTime) throws IOException {
+    private void putConnection(T connection, long eventTime) throws IOException {
         ioThreads[connection.fd % ioThreadsCount].putConnection(connection, eventTime);
     }
 

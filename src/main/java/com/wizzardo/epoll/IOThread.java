@@ -31,9 +31,11 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         byte[] events = new byte[this.events.capacity()];
 //        System.out.println("start new ioThread");
 
+        long prev = System.nanoTime();
         while (running) {
             this.events.position(0);
-            Long now = System.nanoTime() * 1000;
+            long now = System.nanoTime() * 1000;
+            long nowMinusSecond = now - 1_000_000_000_000L;// 1 sec
             int r = waitForEvents(500);
 //                System.out.println("events length: "+r);
             this.events.limit(r);
@@ -43,15 +45,18 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                 int event = events[i];
                 int fd = readInt(events, i + 1);
 //                    System.out.println("event on fd " + fd + ": " + event);
-                now = handleEvent(fd, event, now);
+                now = handleEvent(fd, event, now, nowMinusSecond);
                 i += 5;
             }
 
-            handleTimeOuts(now);
+            if (nowMinusSecond > prev) {
+                handleTimeOuts(now);
+                prev = now;
+            }
         }
     }
 
-    protected Long handleEvent(int fd, int event, Long now) {
+    protected long handleEvent(int fd, int event, long now, long eventTimeoutThreshold) {
         T connection = getConnection(fd);
         if (connection == null) {
             close(fd);
@@ -80,16 +85,18 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
             }
         }
 
-        Long key = connection.setLastEvent(now);
+        if (connection.getLastEvent() > eventTimeoutThreshold)
+            return now;
+
+        long key = connection.setLastEvent(now);
 //                System.out.println("update timeout for " + connection + " set " + now + " at " + System.currentTimeMillis());
+        timeouts.remove(key);
         timeouts.put(now++, connection);
-        if (key != null)
-            timeouts.remove(key);
         return now;
     }
 
-    protected void handleTimeOuts(Long eventTime) {
-        eventTime -= ttl * 1000000L * 1000;
+    protected void handleTimeOuts(long eventTime) {
+        eventTime -= ttl * 1_000_000_000L;
         T connection;
         Map.Entry<Long, T> entry;
 
@@ -140,7 +147,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connections[index] = connection;
     }
 
-    protected void putConnection(T connection, Long eventTime) throws IOException {
+    protected void putConnection(T connection, long eventTime) throws IOException {
         newConnections.put(connection.fd, connection);
         connection.setIOThread(this);
         connection.setLastEvent(eventTime);

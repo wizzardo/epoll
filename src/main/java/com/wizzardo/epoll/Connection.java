@@ -37,7 +37,7 @@ public class Connection implements Cloneable, Closeable {
     private volatile boolean alive = true;
     volatile boolean readyToRead = true;
     private String ipString;
-    private Long lastEvent;
+    private long lastEvent;
 
     public Connection(int fd, int ip, int port) {
         this.fd = fd;
@@ -72,13 +72,13 @@ public class Connection implements Cloneable, Closeable {
         return readyToRead;
     }
 
-    Long setLastEvent(Long lastEvent) {
-        Long last = this.lastEvent;
+    long setLastEvent(long lastEvent) {
+        long last = this.lastEvent;
         this.lastEvent = lastEvent;
         return last;
     }
 
-    Long getLastEvent() {
+    long getLastEvent() {
         return lastEvent;
     }
 
@@ -309,8 +309,8 @@ public class Connection implements Cloneable, Closeable {
         return read(bytes, 0, bytes.length, bufferProvider);
     }
 
-    boolean isInvalid(Long now) {
-        return lastEvent.compareTo(now) <= 0;
+    boolean isInvalid(long now) {
+        return lastEvent <= now;
     }
 
     void setMode(int mode) {
