@@ -73,7 +73,7 @@ public class ReadableBuilder extends ReadableData {
     }
 
     protected void increaseSize() {
-        ReadableData[] temp = new ReadableData[partsCount * 3 / 2];
+        ReadableData[] temp = new ReadableData[Math.max(partsCount * 3 / 2, 2)];
         System.arraycopy(parts, 0, temp, 0, partsCount);
         parts = temp;
     }
