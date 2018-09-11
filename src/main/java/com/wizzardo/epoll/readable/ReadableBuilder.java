@@ -53,7 +53,7 @@ public class ReadableBuilder extends ReadableData {
     }
 
     public ReadableBuilder append(byte[] bytes, int offset, int length) {
-        if (partsCount + 1 == parts.length)
+        if (partsCount + 1 >= parts.length)
             increaseSize();
 
         parts[partsCount] = new ReadableByteArray(bytes, offset, length);
@@ -63,7 +63,7 @@ public class ReadableBuilder extends ReadableData {
     }
 
     public ReadableBuilder append(ReadableData readableData) {
-        if (partsCount + 1 == parts.length)
+        if (partsCount + 1 >= parts.length)
             increaseSize();
 
         parts[partsCount] = readableData;
