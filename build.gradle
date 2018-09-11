@@ -14,9 +14,10 @@ targetCompatibility = 1.8
 archivesBaseName = "epoll"
 
 group = 'com.wizzardo'
-version = '0.3.3-SNAPSHOT'
+version = '0.3.3'
 
 ext {
+    toolsVersion = '0.22'
     descriptionString = 'Event-based socket server, which uses epoll'
 
     cWorkDir = 'src/main/c/com/wizzardo/epoll'
@@ -33,14 +34,11 @@ apply from: 'gradle/sonatype.gradle'
 
 
 dependencies {
-//    compile files(
-//            '../Utils/build/libs/tools-all-0.13-SNAPSHOT.jar'
-//    )
-    compile 'com.wizzardo.tools:tools-io:0.21'
-    compile 'com.wizzardo.tools:tools-reflection:0.21'
+    compile "com.wizzardo.tools:tools-io:$toolsVersion"
+    compile "com.wizzardo.tools:tools-reflection:$toolsVersion"
 
     testCompile 'junit:junit:4.12'
-    testCompile 'com.wizzardo.tools:tools:0.21'
+    testCompile "com.wizzardo.tools:tools:$toolsVersion"
 }
 
 
