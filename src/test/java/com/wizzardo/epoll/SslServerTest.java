@@ -203,7 +203,7 @@ public class SslServerTest {
 
         server.start();
         try {
-            int pause = 1100;
+            int pause = 1600;
             TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
                 public X509Certificate[] getAcceptedIssuers() {
                     return null;

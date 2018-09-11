@@ -147,10 +147,9 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connections[index] = connection;
     }
 
-    protected void putConnection(T connection, long eventTime) throws IOException {
+    protected void putConnection(T connection) throws IOException {
         newConnections.put(connection.fd, connection);
         connection.setIOThread(this);
-        connection.setLastEvent(eventTime);
         if (attach(scope, connection.fd)) {
             onAttach(connection);
         } else {

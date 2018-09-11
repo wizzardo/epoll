@@ -111,7 +111,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
                     while (i < r) {
                         int event = events[i];
                         if (event == 0) {
-                            acceptConnections(newConnections, now);
+                            acceptConnections(newConnections);
                         } else {
                             int fd = readInt(events, i + 1);
                             ioThread.handleEvent(fd, event, now, nowMinusSecond);
@@ -132,7 +132,6 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         while (running) {
             try {
                 eventsBuffer.position(0);
-                long now = System.nanoTime() * 1000;
                 int r = waitForEvents(500);
                 eventsBuffer.limit(r);
                 eventsBuffer.get(events, 0, r);
@@ -141,7 +140,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
                     int event = events[i];
                     i += 5;
                     if (event == 0)
-                        acceptConnections(newConnections, now);
+                        acceptConnections(newConnections);
                     else
                         throw new IllegalStateException("this thread only for accepting new connections, event: " + event);
                 }
@@ -176,7 +175,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         }
     }
 
-    private Long acceptConnections(byte[] buffer, long eventTime) throws IOException {
+    private void acceptConnections(byte[] buffer) throws IOException {
         events.position(0);
         int k = acceptConnections(scope);
         events.limit(k);
@@ -185,13 +184,12 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         for (int j = 0; j < k; j += 10) {
             int fd = readInt(buffer, j);
             T connection = createConnection(fd, readInt(buffer, j + 4), readShort(buffer, j + 8));
-            putConnection(connection, eventTime++);
+            putConnection(connection);
         }
-        return eventTime;
     }
 
-    private void putConnection(T connection, long eventTime) throws IOException {
-        ioThreads[connection.fd % ioThreadsCount].putConnection(connection, eventTime);
+    private void putConnection(T connection) throws IOException {
+        ioThreads[connection.fd % ioThreadsCount].putConnection(connection);
     }
 
     public T connect(String host, int port) throws IOException {
@@ -209,10 +207,10 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
             IOThread ioThread = (IOThread) Thread.currentThread();
             int fd = ioThread.connect(scope, host, port, ioThread.divider, ioThread.number);
             connection = factory.create(fd, 0, port);
-            ioThread.putConnection(connection, System.nanoTime() * 1000);
+            ioThread.putConnection(connection);
         } else {
             connection = factory.create(connect(scope, host, port, 1, 0), 0, port);
-            putConnection(connection, System.nanoTime() * 1000);
+            putConnection(connection);
         }
         connection.setIpString(host);
         return connection;

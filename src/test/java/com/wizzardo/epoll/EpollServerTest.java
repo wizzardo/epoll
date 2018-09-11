@@ -125,14 +125,17 @@ public class EpollServerTest {
             Socket s = new Socket("localhost", port);
             InputStream in = s.getInputStream();
             byte[] b = new byte[1024];
-            int r = in.read(b);
+            int r = 0;
+            while ((r += in.read(b, r, 12 - r)) < 12) {
+            }
 
             Assert.assertEquals("Hello world!", new String(b, 0, r));
         } catch (IOException e) {
             e.printStackTrace();
             assert e == null;
+        } finally {
+            server.close();
         }
-        server.close();
     }
 
     @Test
@@ -673,7 +676,7 @@ public class EpollServerTest {
 
         server.start();
         try {
-            int pause = 1100;
+            int pause = 1600;
             Socket s = new Socket("localhost", port);
             Thread.sleep(pause);
             Assert.assertEquals(1, onClose.get());
@@ -755,7 +758,7 @@ public class EpollServerTest {
 
         server.start();
         try {
-            int pause = 1100;
+            int pause = 1600;
             Socket s = new Socket("localhost", port);
             Thread.sleep(pause);
             Assert.assertEquals(1, onClose.get());
