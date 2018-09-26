@@ -60,7 +60,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     protected void initEpoll(int maxEvents) {
-        events = ByteBuffer.allocateDirect((maxEvents + 500) * 11);
+        events = ByteBuffer.allocateDirect(Math.max((maxEvents + 500) * 11, 16 * 1024));
         scope = init(maxEvents, events);
     }
 
@@ -176,16 +176,17 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     private void acceptConnections(byte[] buffer) throws IOException {
-        events.position(0);
-        int k = acceptConnections(scope);
-        events.limit(k);
-        events.get(buffer, 0, k);
-//        eventCounter.addAndGet(k / 10);
-        for (int j = 0; j < k; j += 10) {
-            int fd = readInt(buffer, j);
-            T connection = createConnection(fd, readInt(buffer, j + 4), readShort(buffer, j + 8));
-            putConnection(connection);
-        }
+        int k;
+        do {
+            events.position(0);
+            k = acceptConnections(scope, events.capacity() - 10);
+            events.limit(k);
+            events.get(buffer, 0, k);
+//          eventCounter.addAndGet(k / 10);
+            for (int j = 0; j < k; j += 10) {
+                putConnection(createConnection(readInt(buffer, j), readInt(buffer, j + 4), readShort(buffer, j + 8)));
+            }
+        } while (k > 0);
     }
 
     private void putConnection(T connection) throws IOException {
@@ -286,7 +287,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     private native int waitForEvents(long scope, int timeout);
 
-    private native int acceptConnections(long scope);
+    private native int acceptConnections(long scope, int limit);
 
     native int connect(long scope, String host, int port, int divider, int number);
 

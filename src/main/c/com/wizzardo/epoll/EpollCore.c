@@ -165,7 +165,7 @@ void throwException2(JNIEnv *env, char *message, char *clazz) {
     (*env)->Throw(env, t);
 }
 
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEnv *env, jobject obj, jlong scopePointer) {
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEnv *env, jobject obj, jlong scopePointer, jint limit) {
     int s, j = 0;
     struct Scope *scope = (struct Scope *)scopePointer;
     struct epoll_event event = scope->event;
@@ -179,7 +179,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEn
     in_len = sizeof addr;
     errno = 0;
 
-    while (1) {
+    while (j < limit) {
         infd = accept4(sfd, &addr, &in_len, SOCK_NONBLOCK);
         if (infd == -1) {
             if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
