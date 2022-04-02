@@ -28,7 +28,7 @@ class Utils {
 
     static void loadLib(String name) throws IOException {
         String arch = System.getProperty("os.arch");
-        name = name + (arch.contains("64") ? "_x64" : "_x32") + ".so";
+        name = name + (arch.contains("64") ? (arch.contains("aarch64") ? "_aarch64":"_x64") : "_x32") + ".so";
         // have to use a stream
         InputStream in = EpollCore.class.getResourceAsStream("/" + name);
 

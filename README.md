@@ -56,3 +56,5 @@ Download
 
 [epoll]:http://en.wikipedia.org/wiki/Epoll
 [bintray]:https://bintray.com/wizzardo/maven/epoll/
+
+Building the project for aarach64 ( mac m1 machines)

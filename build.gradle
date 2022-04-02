@@ -29,16 +29,18 @@ ext {
     linux32 = 'build/libepoll-core_x32.so'
     linux64SSL = 'build/libepoll-ssl_x64.so'
     linux32SSL = 'build/libepoll-ssl_x32.so'
+    linuxaarch64 = project.projectDir.absolutePath+ '/build/libepoll-core_aarch64.so'
+    linuxaarch64SSL = project.projectDir.absolutePath+ '/build/libepoll-ssl_aarch64.so'
 }
-apply from: 'gradle/sonatype.gradle'
+ apply from: 'gradle/sonatype.gradle'
 
 
 dependencies {
-    compile "com.wizzardo.tools:tools-io:$toolsVersion"
-    compile "com.wizzardo.tools:tools-reflection:$toolsVersion"
+    implementation "com.wizzardo.tools:tools-io:$toolsVersion"
+    implementation "com.wizzardo.tools:tools-reflection:$toolsVersion"
 
-    testCompile 'junit:junit:4.12'
-    testCompile "com.wizzardo.tools:tools:$toolsVersion"
+    testImplementation 'junit:junit:4.12'
+    testImplementation "com.wizzardo.tools:tools:$toolsVersion"
 }
 
 
@@ -47,10 +49,15 @@ jar {
     dependsOn 'compileLinux64'
     dependsOn 'compileSSLLinux32'
     dependsOn 'compileSSLLinux64'
+    dependsOn 'compileMacM164'
+    dependsOn 'compileSSLMacM164'
+
     from 'build/libepoll-core_x64.so'
     from 'build/libepoll-core_x32.so'
     from 'build/libepoll-ssl_x64.so'
     from 'build/libepoll-ssl_x32.so'
+    from 'build/libepoll-core_aarch64.so'
+    from 'build/libepoll-ssl_aarch64.so'
 }
 
 task jar32(type: Jar, dependsOn: ['compileLinux32', 'compileSSLLinux32']) {
@@ -64,6 +71,13 @@ task jar64(type: Jar, dependsOn: ['compileLinux64', 'compileSSLLinux64']) {
     baseName = project.name + '-x64'
     from 'build/libepoll-core_x64.so'
     from 'build/libepoll-ssl_x64.so'
+    from sourceSets.main.output
+}
+
+task jarAarch64(type: Jar, dependsOn: ['compileMacM164', 'compileSSLMacM164']) {
+    baseName = project.name + '-aarch64'
+    from 'build/libepoll-core_aarch64.so'
+    from 'build/libepoll-ssl_aarch64.so'
     from sourceSets.main.output
 }
 
@@ -91,10 +105,26 @@ task compileSSLLinux32(type: Exec, dependsOn: ['prepareSSLHeaders']) {
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollSSL.c', '-m32', '-lssl', '-lcrypto'
 }
 
+task compileMacM164(type: Exec, dependsOn: ['prepareCoreHeaders']) {
+    workingDir cWorkDir
+    commandLine 'gcc', '-g', '-Ofast', '-shared', '-fpic', '-o', new File(linuxaarch64).absolutePath, '-I',
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
+}
+
+task compileSSLMacM164(type: Exec, dependsOn: ['prepareCoreHeaders']) {
+    workingDir cWorkDir
+    println linuxaarch64SSL
+    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linuxaarch64SSL).absolutePath, '-I',
+            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-lssl', '-lcrypto'
+}
+
 task prepareCoreHeaders(type: Exec, dependsOn: ['compileJava']) {
-    commandLine 'javah', '-classpath', 'build/classes/java/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollCore'
+    doFirst{
+        sourceSets.main.runtimeClasspath.each { println it}
+    }
+    commandLine 'javac', '-classpath', 'build/classes/java/main:'+sourceSets.main.runtimeClasspath.getAsPath(),  '-h', cWorkDir, 'src/main/java/com/wizzardo/epoll/EpollCore.java'
 }
 
 task prepareSSLHeaders(type: Exec, dependsOn: ['compileJava']) {
-    commandLine 'javah', '-classpath', 'build/classes/java/main', '-jni', '-v', '-d', cWorkDir, 'com.wizzardo.epoll.EpollSSL'
+    commandLine 'javac', '-classpath', 'build/classes/java/main:'+sourceSets.main.runtimeClasspath.getAsPath(),  '-h', cWorkDir, 'src/main/java/com/wizzardo/epoll/EpollSSL.java'
 }
