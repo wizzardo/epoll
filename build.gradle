@@ -74,7 +74,7 @@ task jar64(type: Jar, dependsOn: ['compileLinux64', 'compileSSLLinux64']) {
     from sourceSets.main.output
 }
 
-task jarAarch64(type: Jar, dependsOn: ['compileMacM164', 'compileSSLMacM164']) {
+task jarAarch64(type: Jar, dependsOn: ['compileLinuxAarch64', 'compileSSLLinuxAarch64']) {
     baseName = project.name + '-aarch64'
     from 'build/libepoll-core_aarch64.so'
     from 'build/libepoll-ssl_aarch64.so'
@@ -105,15 +105,14 @@ task compileSSLLinux32(type: Exec, dependsOn: ['prepareSSLHeaders']) {
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollSSL.c', '-m32', '-lssl', '-lcrypto'
 }
 
-task compileMacM164(type: Exec, dependsOn: ['prepareCoreHeaders']) {
+task compileLinuxAarch64(type: Exec, dependsOn: ['prepareCoreHeaders']) {
     workingDir cWorkDir
     commandLine 'gcc', '-g', '-Ofast', '-shared', '-fpic', '-o', new File(linuxaarch64).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
 }
 
-task compileSSLMacM164(type: Exec, dependsOn: ['prepareCoreHeaders']) {
+task compileSSLLinuxAarch64(type: Exec, dependsOn: ['prepareCoreHeaders']) {
     workingDir cWorkDir
-    println linuxaarch64SSL
     commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linuxaarch64SSL).absolutePath, '-I',
             jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-lssl', '-lcrypto'
 }
