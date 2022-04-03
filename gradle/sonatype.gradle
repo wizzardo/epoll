@@ -16,8 +16,24 @@ task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
+task natives_x32(type: Jar) {
+    classifier = 'natives-x32'
+    from 'build/libepoll-core_x32.so'
+    from 'build/libepoll-ssl_x32.so'
+}
+task natives_x64(type: Jar) {
+    classifier = 'natives-x64'
+    from 'build/libepoll-core_x64.so'
+    from 'build/libepoll-ssl_x64.so'
+}
+task natives_aarch64(type: Jar) {
+    classifier = 'natives-aarch64'
+    from 'build/libepoll-core_aarch64.so'
+    from 'build/libepoll-ssl_aarch64.so'
+}
+
 artifacts {
-    archives javadocJar, sourcesJar
+    archives javadocJar, sourcesJar, natives_x32, natives_x64, natives_aarch64
 }
 
 signing {

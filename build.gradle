@@ -1,43 +1,39 @@
-apply plugin: 'java'
+allprojects {
+    apply plugin: 'java'
 
-repositories {
-    jcenter()
-    mavenCentral()
-    maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots/"
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    group = 'com.wizzardo'
+    version = '0.3.5-SNAPSHOT'
+
+    javadoc {
+        options.tags = ["author:"]
+    }
+
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://oss.sonatype.org/content/repositories/snapshots/"
+        }
     }
 }
-
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
-archivesBaseName = "epoll"
-
-group = 'com.wizzardo'
-version = '0.3.4'
 
 ext {
     toolsVersion = '0.22'
     descriptionString = 'Event-based socket server, which uses epoll'
 
     cWorkDir = 'src/main/c/com/wizzardo/epoll'
-    jdk = System.getenv('JAVA_HOME') ?: '/home/wizzardo/soft/jdk8'
-    if (!jdk)
-        throw new IllegalArgumentException('please specify JAVA_HOME')
-
-    linux64 = 'build/libepoll-core_x64.so'
-    linux32 = 'build/libepoll-core_x32.so'
-    linux64SSL = 'build/libepoll-ssl_x64.so'
-    linux32SSL = 'build/libepoll-ssl_x32.so'
-    linuxaarch64 = project.projectDir.absolutePath+ '/build/libepoll-core_aarch64.so'
-    linuxaarch64SSL = project.projectDir.absolutePath+ '/build/libepoll-ssl_aarch64.so'
 }
- apply from: 'gradle/sonatype.gradle'
+apply from: 'gradle/sonatype.gradle'
 
 
 dependencies {
     implementation "com.wizzardo.tools:tools-io:$toolsVersion"
     implementation "com.wizzardo.tools:tools-reflection:$toolsVersion"
+    implementation project(':natives:x32')
+    implementation project(':natives:x64')
+    implementation project(':natives:aarch64')
 
     testImplementation 'junit:junit:4.12'
     testImplementation "com.wizzardo.tools:tools:$toolsVersion"
@@ -45,85 +41,24 @@ dependencies {
 
 
 jar {
-    dependsOn 'compileLinux32'
-    dependsOn 'compileLinux64'
-    dependsOn 'compileSSLLinux32'
-    dependsOn 'compileSSLLinux64'
-    dependsOn 'compileMacM164'
-    dependsOn 'compileSSLMacM164'
-
-    from 'build/libepoll-core_x64.so'
-    from 'build/libepoll-core_x32.so'
-    from 'build/libepoll-ssl_x64.so'
-    from 'build/libepoll-ssl_x32.so'
-    from 'build/libepoll-core_aarch64.so'
-    from 'build/libepoll-ssl_aarch64.so'
+    dependsOn 'compileNatives'
 }
 
-task jar32(type: Jar, dependsOn: ['compileLinux32', 'compileSSLLinux32']) {
-    baseName = project.name + '-x32'
-    from 'build/libepoll-core_x32.so'
-    from 'build/libepoll-ssl_x32.so'
-    from sourceSets.main.output
-}
-
-task jar64(type: Jar, dependsOn: ['compileLinux64', 'compileSSLLinux64']) {
-    baseName = project.name + '-x64'
-    from 'build/libepoll-core_x64.so'
-    from 'build/libepoll-ssl_x64.so'
-    from sourceSets.main.output
-}
-
-task jarAarch64(type: Jar, dependsOn: ['compileLinuxAarch64', 'compileSSLLinuxAarch64']) {
-    baseName = project.name + '-aarch64'
-    from 'build/libepoll-core_aarch64.so'
-    from 'build/libepoll-ssl_aarch64.so'
-    from sourceSets.main.output
-}
-
-task compileLinux64(type: Exec, dependsOn: ['prepareCoreHeaders']) {
-    workingDir cWorkDir
-    commandLine 'gcc', '-g', '-Ofast', '-shared', '-fpic', '-o', new File(linux64).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
-}
-
-task compileLinux32(type: Exec, dependsOn: ['prepareCoreHeaders']) {
-    workingDir cWorkDir
-    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux32).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-m32'
-}
-
-task compileSSLLinux64(type: Exec, dependsOn: ['prepareSSLHeaders']) {
-    workingDir cWorkDir
-    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux64SSL).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollSSL.c', '-lssl', '-lcrypto'
-}
-
-task compileSSLLinux32(type: Exec, dependsOn: ['prepareSSLHeaders']) {
-    workingDir cWorkDir
-    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linux32SSL).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollSSL.c', '-m32', '-lssl', '-lcrypto'
-}
-
-task compileLinuxAarch64(type: Exec, dependsOn: ['prepareCoreHeaders']) {
-    workingDir cWorkDir
-    commandLine 'gcc', '-g', '-Ofast', '-shared', '-fpic', '-o', new File(linuxaarch64).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c'
-}
-
-task compileSSLLinuxAarch64(type: Exec, dependsOn: ['prepareCoreHeaders']) {
-    workingDir cWorkDir
-    commandLine 'gcc', '-Ofast', '-shared', '-fpic', '-o', new File(linuxaarch64SSL).absolutePath, '-I',
-            jdk + '/include/', '-I', jdk + '/include/linux/', 'EpollCore.c', '-lssl', '-lcrypto'
+task compileNatives(type: Exec, dependsOn: ['prepareCoreHeaders', 'prepareSSLHeaders']) {
+    doLast {
+        def proc = "./build_natives.sh".execute([], new File(project.projectDir.absolutePath))
+        proc.waitForProcessOutput(System.out, System.err)
+    }
+    commandLine 'ls', 'build'
 }
 
 task prepareCoreHeaders(type: Exec, dependsOn: ['compileJava']) {
-    doFirst{
-        sourceSets.main.runtimeClasspath.each { println it}
+    doFirst {
+        sourceSets.main.runtimeClasspath.each { println it }
     }
-    commandLine 'javac', '-classpath', 'build/classes/java/main:'+sourceSets.main.runtimeClasspath.getAsPath(),  '-h', cWorkDir, 'src/main/java/com/wizzardo/epoll/EpollCore.java'
+    commandLine 'javac', '-classpath', 'build/classes/java/main:' + sourceSets.main.runtimeClasspath.getAsPath(), '-h', cWorkDir, 'src/main/java/com/wizzardo/epoll/EpollCore.java'
 }
 
 task prepareSSLHeaders(type: Exec, dependsOn: ['compileJava']) {
-    commandLine 'javac', '-classpath', 'build/classes/java/main:'+sourceSets.main.runtimeClasspath.getAsPath(),  '-h', cWorkDir, 'src/main/java/com/wizzardo/epoll/EpollSSL.java'
+    commandLine 'javac', '-classpath', 'build/classes/java/main:' + sourceSets.main.runtimeClasspath.getAsPath(), '-h', cWorkDir, 'src/main/java/com/wizzardo/epoll/EpollSSL.java'
 }

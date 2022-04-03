@@ -1,0 +1,22 @@
+FROM buildpack-deps:18.04
+
+ARG TARGETPLATFORM
+RUN echo '===========================SETTING UP JAVA FOR '$TARGETPLATFORM'=========================='
+
+RUN OPENJDK='https://cdn.azul.com/zulu/bin/zulu8.60.0.21-ca-jdk8.0.322-linux_i686.tar.gz' \
+    && curl -fSsL   "${OPENJDK}" -o /tmp/openjdk.tar.gz \
+    && mkdir /usr/local/openjdk8  \
+    && tar xzf /tmp/openjdk.tar.gz  -C /usr/local/openjdk8 --strip-components=1 \
+    && ln -s /usr/local/openjdk8/bin/javac /usr/local/bin/javac  \
+    && ln -s /usr/local/openjdk8/bin/java /usr/local/bin/java  \
+    && ln -s /usr/local/openjdk8/bin/jar /usr/local/bin/jar \
+    && ln -s /usr/local/openjdk8/bin/javah /usr/local/bin/javah
+
+ENV JAVA_HOME /usr/local/openjdk8
+ENV PATH $PATH:$JAVA_HOME/bin
+
+WORKDIR /tmp/epoll
+COPY . .
+
+RUN gcc  -Ofast -shared -fpic -o build/libepoll-core_x32.so -I '/usr/local/openjdk8/include/' -I '/usr/local/openjdk8/include/linux/' src/main/c/com/wizzardo/epoll/EpollCore.c
+RUN gcc  -Ofast -shared -fpic -o build/libepoll-ssl_x32.so -I '/usr/local/openjdk8/include/' -I '/usr/local/openjdk8/include/linux/' src/main/c/com/wizzardo/epoll/EpollSSL.c -lssl -lcrypto

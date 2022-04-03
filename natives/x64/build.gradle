@@ -1,0 +1,12 @@
+archivesBaseName = "epoll"
+ext {
+    descriptionString = 'native build for x64 systems'
+}
+//apply from: "${rootProject.projectDir}/gradle/sonatype.gradle"
+
+
+jar {
+    classifier = 'natives-x64'
+    from "${rootProject.projectDir}/build/libepoll-core_x64.so"
+    from "${rootProject.projectDir}/build/libepoll-ssl_x64.so"
+}

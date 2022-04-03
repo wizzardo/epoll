@@ -1,2 +1,5 @@
 rootProject.name = 'epoll'
+include ':natives:x32',
+        ':natives:x64',
+        ':natives:aarch64'
 

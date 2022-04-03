@@ -1,0 +1,8 @@
+out/
+.idea
+lib
+build
+.gradle
+gradle.properties
+*.iml
+.docker
