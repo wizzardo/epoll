@@ -123,7 +123,10 @@ public class Connection implements Cloneable, Closeable {
                     readable.onComplete();
                     onWriteData(readable, false);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    try {
+                        onError(bufferProvider, e);
+                    } catch (IOException ignored) {
+                    }
                     close();
                     return false;
                 } finally {
@@ -175,7 +178,10 @@ public class Connection implements Cloneable, Closeable {
                     onWriteData(readable, !queue.isEmpty());
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                try {
+                    onError(bufferProvider, e);
+                } catch (IOException ignored) {
+                }
                 close();
                 return false;
             } finally {
@@ -200,15 +206,18 @@ public class Connection implements Cloneable, Closeable {
         bb.clear();
         int r = readable.read(bb);
         if (r > 0) {
-//            int written = epoll.write(this, bb.address, bb.offset(), r);
-            int written = write(bb, bb.offset(), r);
-            bb.clear();
-//            System.out.println("write: " + written + " (" + readable.complete() + "/" + readable.length() + ")" + " to " + this);
-            if (written != r) {
-                readable.unread(r - written);
-                return false;
+            try {
+//              int written = epoll.write(this, bb.address, bb.offset(), r);
+                int written = write(bb, bb.offset(), r);
+//              System.out.println("write: " + written + " (" + readable.complete() + "/" + readable.length() + ")" + " to " + this);
+                if (written != r) {
+                    readable.unread(r - written);
+                    return false;
+                }
+                return true;
+            } finally {
+                bb.clear();
             }
-            return true;
         }
         return false;
     }
