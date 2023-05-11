@@ -1,39 +1,22 @@
 package com.wizzardo.epoll.readable;
 
-import com.wizzardo.epoll.ByteBufferWrapper;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 
-/**
- * Created by wizzardo on 24.04.16.
- */
-public class ReadableByteBufferTest {
+public class ReadableByteArrayTest {
 
-    @Test
-    public void test_sameBuffer() {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(256);
-        ReadableByteBuffer readable = new ReadableByteBuffer(buffer);
-
-        assertSame(buffer, readable.getByteBuffer(null).buffer());
-    }
-
-    @Test
-    public void test_readAll() {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(256);
-        ReadableByteBuffer readable = new ReadableByteBuffer(buffer);
-        assertEquals(256, readable.read(readable.getByteBuffer(null).buffer()));
-    }
 
     @Test
     public void test_read_into_heap_bb() {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(256);
+        byte[] buffer = new byte[256];
         for (int i = 0; i < 256; i++) {
-            buffer.put((byte) i);
+            buffer[i]= (byte) i;
         }
-        ReadableByteBuffer readable = new ReadableByteBuffer(buffer);
+        ReadableByteArray readable = new ReadableByteArray(buffer);
 
         ByteBuffer b = ByteBuffer.allocate(256);
         assertEquals(256, readable.read(b));
@@ -46,11 +29,11 @@ public class ReadableByteBufferTest {
 
     @Test
     public void test_read_into_direct_bb() {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(256);
+        byte[] buffer = new byte[256];
         for (int i = 0; i < 256; i++) {
-            buffer.put((byte) i);
+            buffer[i]= (byte) i;
         }
-        ReadableByteBuffer readable = new ReadableByteBuffer(buffer);
+        ReadableByteArray readable = new ReadableByteArray(buffer);
 
         ByteBuffer b = ByteBuffer.allocateDirect(256);
         assertEquals(256, readable.read(b));
@@ -63,12 +46,11 @@ public class ReadableByteBufferTest {
 
     @Test
     public void test_sub_buffer() {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(256);
+        byte[] buffer = new byte[256];
         for (int i = 0; i < 256; i++) {
-            buffer.put((byte) i);
+            buffer[i]= (byte) i;
         }
-        ReadableByteBuffer readable = new ReadableByteBuffer(buffer);
-        ReadableByteBuffer subBuffer = readable.subBuffer(32, 32);
+        ReadableByteArray subBuffer = new ReadableByteArray(buffer, 32, 32);
 
         assertEquals(32, subBuffer.length());
         assertEquals(32, subBuffer.remains());

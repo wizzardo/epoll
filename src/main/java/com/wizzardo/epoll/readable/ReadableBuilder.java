@@ -11,6 +11,8 @@ import java.nio.ByteBuffer;
  * Date: 7/25/14
  */
 public class ReadableBuilder extends ReadableData {
+    protected static final ReadableData[] EMPTY_ARRAY = new ReadableData[0];
+
     protected ReadableData[] parts;
     protected int partsCount = 0;
     protected int position = 0;
@@ -20,7 +22,7 @@ public class ReadableBuilder extends ReadableData {
     }
 
     public ReadableBuilder(int initSize) {
-        parts = new ReadableData[initSize];
+        parts = initSize > 0 ? new ReadableData[initSize] : EMPTY_ARRAY;
     }
 
     public ReadableBuilder(byte[] bytes) {

@@ -109,7 +109,7 @@ public class ReadableByteBuffer extends ReadableData {
 
     @Override
     public long remains() {
-        return end + start - position;
+        return end - position;
     }
 
     public ReadableByteBuffer subBuffer(int offset) {
