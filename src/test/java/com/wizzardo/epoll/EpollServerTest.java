@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,7 +53,7 @@ public class EpollServerTest {
         } catch (IOException e) {
             connectionRefuse = e.getMessage();
         }
-        Assert.assertEquals("Connection refused (Connection refused)", connectionRefuse);
+        Assert.assertEquals("Connection refused", connectionRefuse);
     }
 
     @Test
@@ -76,7 +77,7 @@ public class EpollServerTest {
             }
         };
 
-        server.setIoThreadsCount(1);
+        server.setIoThreadsCount(0);
         server.start();
 
         try {
@@ -91,9 +92,10 @@ public class EpollServerTest {
             Assert.assertEquals("hello world!", new String(b, 0, r));
         } catch (IOException e) {
             e.printStackTrace();
-            assert e == null;
+            Assert.fail();
+        } finally {
+            server.close();
         }
-        server.close();
     }
 
     @Test
@@ -132,7 +134,7 @@ public class EpollServerTest {
             Assert.assertEquals("Hello world!", new String(b, 0, r));
         } catch (IOException e) {
             e.printStackTrace();
-            assert e == null;
+            Assert.fail();
         } finally {
             server.close();
         }
@@ -178,9 +180,10 @@ public class EpollServerTest {
             Assert.assertEquals("Hello static world!", new String(out.toByteArray()));
         } catch (IOException e) {
             e.printStackTrace();
-            assert e == null;
+            Assert.fail();
+        } finally {
+            server.close();
         }
-        server.close();
     }
 
     static class BufferedConnection extends Connection {
@@ -477,9 +480,9 @@ public class EpollServerTest {
         } catch (IOException e) {
             message = e.getMessage();
         }
-        Assert.assertEquals("Connection refused (Connection refused)", message);
 
         try {
+            Assert.assertEquals("Connection refused", message);
             Socket s = new Socket(host, port);
             OutputStream out = s.getOutputStream();
             out.write("hello world!".getBytes());
@@ -491,8 +494,10 @@ public class EpollServerTest {
             Assert.assertEquals("hello world!", new String(b, 0, r));
         } catch (IOException e) {
             e.printStackTrace();
+            Assert.fail();
+        } finally {
+            server.close();
         }
-        server.close();
     }
 
     @Test
@@ -564,7 +569,7 @@ public class EpollServerTest {
 //                            System.out.println(new String(b, 0, r));
 //                            connection.write(response.copy());
                             connection.write(data, this);
-//                            System.out.println("write response");
+//                            System.out.println("write response to "+connection.fd);
                             connection.close();
 //                            System.out.println("close");
                         } catch (IOException e) {
@@ -585,9 +590,11 @@ public class EpollServerTest {
         try {
             while (true) {
 //                Assert.assertEquals("ok", HttpClient.createRequest("http://localhost:8080")
+//                System.out.println("send request " + i);
                 Assert.assertEquals("ok", HttpClient.createRequest("http://localhost:9090")
                         .header("Connection", "Close")
                         .get().asString());
+//                System.out.println("request finished " + i);
                 i++;
                 if (i == n)
                     break;
@@ -595,8 +602,10 @@ public class EpollServerTest {
         } catch (Exception e) {
             System.out.println(i);
             e.printStackTrace();
+            Assert.fail();
+        } finally {
+            server.close();
         }
-        server.close();
 
         assert i == n;
         System.out.println(stopwatch);
@@ -649,9 +658,10 @@ public class EpollServerTest {
             assert e == null;
         } catch (InterruptedException e) {
             e.printStackTrace();
-            assert e == null;
+            Assert.fail();
+        } finally {
+            server.close();
         }
-        server.close();
     }
 
     @Test
@@ -683,27 +693,28 @@ public class EpollServerTest {
 
         } catch (IOException e) {
             e.printStackTrace();
-            assert e == null;
+            Assert.fail();
         } catch (InterruptedException e) {
             e.printStackTrace();
-            assert e == null;
+            Assert.fail();
+        } finally {
+            server.close();
         }
-        server.close();
     }
 
     @Test
     public void testCloseReadable() {
         int port = 9090;
-        final AtomicInteger onClose = new AtomicInteger();
-        final AtomicInteger onCloseResource = new AtomicInteger();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger onCloseResource = new AtomicInteger();
 
-        EpollServer server = new EpollServer(port) {
+        EpollServer<Connection> server = new EpollServer<Connection>(port) {
             @Override
-            protected IOThread createIOThread(int number, int divider) {
-                return new IOThread(number, divider) {
+            protected IOThread<Connection> createIOThread(int number, int divider) {
+                return new IOThread<Connection>(number, divider) {
                     @Override
                     public void onDisconnect(Connection connection) {
-                        onClose.incrementAndGet();
+                        latch.countDown();
                     }
 
                     @Override
@@ -758,19 +769,193 @@ public class EpollServerTest {
 
         server.start();
         try {
-            int pause = 1600;
             Socket s = new Socket("localhost", port);
-            Thread.sleep(pause);
-            Assert.assertEquals(1, onClose.get());
+            Assert.assertTrue(latch.await(3, TimeUnit.SECONDS));
             Assert.assertEquals(1, onCloseResource.get());
 
         } catch (IOException e) {
             e.printStackTrace();
-            assert e == null;
+            Assert.fail();
         } catch (InterruptedException e) {
             e.printStackTrace();
-            assert e == null;
+            Assert.fail();
+        } finally {
+            server.close();
         }
-        server.close();
+    }
+
+
+    static class WorkerThread extends Thread implements ByteBufferProvider {
+        ByteBufferWrapper byteBufferWrapper = new ByteBufferWrapper(1024 * 8);
+
+        public WorkerThread(Runnable target) {
+            super(target);
+        }
+
+        @Override
+        public ByteBufferWrapper getBuffer() {
+            return byteBufferWrapper;
+        }
+    }
+
+    @Test
+    public void testInputStream() throws IOException, InterruptedException {
+        int port = 9090;
+        String host = "localhost";
+
+        int length = 10 * 1024 * 1024;
+        final byte[] data = new byte[length];
+        new Random().nextBytes(data);
+        String md5 = MD5.create().update(data).asString();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        EpollServer server = new EpollServer(host, port) {
+            @Override
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
+
+                    @Override
+                    public void onConnect(Connection connection) {
+                        Thread thread = new WorkerThread(() -> {
+                            byte[] buf = new byte[1024 * 16];
+                            int r;
+                            int totalRead = 0;
+                            MD5 md5 = MD5.create();
+
+                            EpollInputStream in = connection.getInputStream();
+                            try {
+                                while (totalRead < length) {
+                                    r = in.read(buf);
+                                    if (r > 0) {
+                                        totalRead += r;
+                                    } else
+                                        Assert.fail("unexpected end of stream");
+                                    md5.update(buf, 0, r);
+                                }
+                                connection.write(md5.toString(), ByteBufferProvider.current());
+                                latch.countDown();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                                Assert.fail(e.getMessage());
+                            }
+
+                        });
+                        thread.setDaemon(true);
+                        thread.start();
+                    }
+                };
+            }
+        };
+
+        server.setIoThreadsCount(1);
+        server.start();
+
+        Socket socket = new Socket(host, port);
+        try {
+            OutputStream out = socket.getOutputStream();
+            out.write(data);
+
+            byte[] buf = new byte[1024 * 16];
+
+
+            InputStream in = socket.getInputStream();
+            int r;
+            int offset = 0;
+            while ((r = in.read(buf, offset, buf.length - offset)) != -1) {
+                offset += r;
+                if (offset >= 32)
+                    break;
+            }
+            Assert.assertEquals(md5, new String(buf, 0, offset));
+            Assert.assertEquals(0, in.available());
+
+            Assert.assertTrue(latch.await(1, TimeUnit.SECONDS));
+        } finally {
+            socket.close();
+            server.close();
+        }
+    }
+
+    @Test
+    public void testInputStreamSlow() throws IOException, InterruptedException {
+        int port = 9090;
+        String host = "localhost";
+
+        int length = 10 * 1024 * 1024;
+        final byte[] data = new byte[length];
+        new Random().nextBytes(data);
+        String md5 = MD5.create().update(data).asString();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        EpollServer server = new EpollServer(host, port) {
+            @Override
+            protected IOThread createIOThread(int number, int divider) {
+                return new IOThread(number, divider) {
+
+                    @Override
+                    public void onConnect(Connection connection) {
+                        Thread thread = new WorkerThread(() -> {
+                            byte[] buf = new byte[16 * 1024];
+                            int r;
+                            int totalRead = 0;
+                            MD5 md5 = MD5.create();
+
+                            EpollInputStream in = connection.getInputStream();
+                            try {
+                                while (totalRead < length) {
+                                    r = in.read(buf);
+                                    if (r > 0) {
+                                        totalRead += r;
+                                    } else
+                                        Assert.fail("unexpected end of stream");
+                                    md5.update(buf, 0, r);
+                                }
+                                connection.write(md5.toString(), ByteBufferProvider.current());
+                                latch.countDown();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                                Assert.fail(e.getMessage());
+                            }
+
+                        });
+                        thread.setDaemon(true);
+                        thread.start();
+                    }
+                };
+            }
+        };
+
+        server.setIoThreadsCount(1);
+        server.start();
+
+        Socket socket = new Socket(host, port);
+        try {
+            OutputStream out = socket.getOutputStream();
+            int position = 0;
+            int partSize = 10 * 1024;
+            while (position < length) {
+                out.write(data, position, Math.min(length - position, partSize));
+                position += partSize;
+                Thread.sleep(10);
+            }
+
+            byte[] buf = new byte[16 * 1024];
+
+            InputStream in = socket.getInputStream();
+            int r;
+            int offset = 0;
+            while ((r = in.read(buf, offset, buf.length - offset)) != -1) {
+                offset += r;
+                if (offset >= 32)
+                    break;
+            }
+            Assert.assertEquals(md5, new String(buf, 0, offset));
+            Assert.assertEquals(0, in.available());
+
+            Assert.assertTrue(latch.await(1, TimeUnit.SECONDS));
+        } finally {
+            socket.close();
+            server.close();
+        }
     }
 }

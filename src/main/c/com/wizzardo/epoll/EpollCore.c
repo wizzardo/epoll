@@ -123,6 +123,19 @@ static int make_socket_nodelay(int sfd) {
     return 0;
 }
 
+static int set_socket_linger(int sfd) {
+    struct linger sl;
+    sl.l_onoff = 1;
+    sl.l_linger = 1;
+
+    if (setsockopt(sfd, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl)) == -1) {
+        perror("Error setting SO_LINGER");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int make_socket_non_blocking(int sfd)
 {
     int flags, s;
@@ -203,6 +216,7 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_acceptConnections(JNIEn
 //                fprintf(stderr, "new connection from  %d %d %d \n",infd, ip, port);
 
         make_socket_nodelay(infd);
+//        set_socket_linger(infd);
 
 //        event.data.fd = infd;
 //        event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
@@ -240,6 +254,22 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env,
     if (s == -1) {
         throwException(env, strerror(errno));
         perror("epoll_ctl on attach");
+        return JNI_FALSE;
+    }
+    return JNI_TRUE;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_detach(JNIEnv *env, jobject obj, jlong scopePointer, jint infd) {
+    int s;
+    struct epoll_event e;
+    struct Scope *scope = (struct Scope *)scopePointer;
+    errno = 0;
+
+    s = epoll_ctl((*scope).efd, EPOLL_CTL_DEL, infd, NULL);
+    if (s == -1) {
+//        fprintf(stderr, "detach failed for %d errno %d = %s\n", infd, errno, strerror(errno));
+//        throwException(env, strerror(errno));
+//        perror("epoll_ctl on detach");
         return JNI_FALSE;
     }
     return JNI_TRUE;
@@ -375,10 +405,10 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_write(JNIEnv *env, jcla
 
 JNIEXPORT void JNICALL Java_com_wizzardo_epoll_EpollCore_close(JNIEnv *env, jobject obj, jint fd)
 {
-//    if(shutdown(fd, SHUT_RDWR) < 0) {
-//        int err = errno;
-//        fprintf(stderr, "shutdown error = %s\n", strerror(err));
-//    }
+    if(shutdown(fd, SHUT_RDWR) < 0) {
+        int err = errno;
+        fprintf(stderr, "shutdown error = %s\n", strerror(err));
+    }
     close(fd);
 //    if(close(fd) < 0) {
 //        int err = errno;
@@ -395,15 +425,8 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_stopListening(JNIEn
     return  s  == 0;
 }
 
-
-JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jobject obj, jlong scopePointer, jstring host, jint port, jint divider, jint number)
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_createSocket(JNIEnv *env, jobject obj, jint divider, jint number)
 {
-//    struct Scope *scope = (struct Scope *)scopePointer;
-//    struct epoll_event event = scope->event;
-//    int efd = scope->efd;
-
-    const char *hhost = (*env)->GetStringUTFChars(env, host, NULL);
-
     int tcp_socket;
     if((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         printf("Error : Could not create socket \n");
@@ -426,9 +449,12 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
                 last -> next = malloc(sizeof(Node));
                 if (last -> next == NULL) {
                     Node * current = head;
+                    Node * next = head;
                     while (current != NULL) {
                         close(current->value);
-                        current = current->next;
+                        next = current->next;
+                        free(current);
+                        current = next;
                     }
                     return -1;
                 }
@@ -440,9 +466,12 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
 
             if((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0){
                 Node * current = head;
+                Node * next = head;
                 while (current != NULL) {
                     close(current->value);
-                    current = current->next;
+                    next = current->next;
+                    free(current);
+                    current = next;
                 }
                 printf("Error : Could not create socket \n");
                 throwException(env, strerror(errno));
@@ -452,11 +481,23 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
         } while(tcp_socket % divider != number);
 
         Node * current = head;
+        Node * next = head;
         while (current != NULL) {
             close(current->value);
-            current = current->next;
+            next = current->next;
+            free(current);
+            current = next;
         }
     }
+
+    return tcp_socket;
+}
+
+JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jobject obj, jint fd, jstring host, jint port)
+{
+    const char *hhost = (*env)->GetStringUTFChars(env, host, NULL);
+
+    int tcp_socket = fd;
 
     int on = 1;
     if(setsockopt(tcp_socket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0){
@@ -492,13 +533,6 @@ JNIEXPORT jint JNICALL Java_com_wizzardo_epoll_EpollCore_connect(JNIEnv *env, jo
         throwException(env, strerror(errno));
         return -1;
     }
-
-//    event.data.fd = tcp_socket;
-//    event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-//    if (epoll_ctl(efd, EPOLL_CTL_ADD, tcp_socket, &event) < 0){
-//        throwException(env, strerror(errno), NULL);
-//        return -1;
-//    }
 
     return tcp_socket;
 }

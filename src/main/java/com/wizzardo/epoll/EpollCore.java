@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CountDownLatch;
 import java.util.regex.Pattern;
 
 import static com.wizzardo.epoll.Utils.readInt;
@@ -29,12 +30,12 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     volatile long scope;
     volatile long sslContextPointer;
     protected volatile boolean running = true;
-    protected volatile boolean started = false;
+    protected final CountDownLatch started = new CountDownLatch(1);
     protected final ByteBufferWrapper buffer = new ByteBufferWrapper(ByteBuffer.allocateDirect(16 * 1024));
     protected static final Pattern IP_PATTERN = Pattern.compile("[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}");
-    protected int ioThreadsCount = Runtime.getRuntime().availableProcessors();
+    protected volatile int ioThreadsCount = Runtime.getRuntime().availableProcessors();
     protected SslConfig sslConfig;
-    protected long ttl = 30000;
+    protected volatile long ttl = 30000;
 
     private IOThread[] ioThreads;
 
@@ -65,27 +66,18 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     public void setIoThreadsCount(int ioThreadsCount) {
+        if (isStarted())
+            return;
+
         this.ioThreadsCount = ioThreadsCount;
     }
 
     public boolean isStarted() {
-        return started;
+        return started.getCount() == 0;
     }
-
-//    protected AtomicInteger eventCounter = new AtomicInteger(0);
 
     @Override
     public void run() {
-        started = true;
-        System.out.println("io threads count: " + ioThreadsCount);
-        ioThreads = new IOThread[ioThreadsCount];
-        for (int i = 0; i < ioThreadsCount; i++) {
-            ioThreads[i] = createIOThread(i, ioThreadsCount);
-            ioThreads[i].setTTL(ttl);
-            ioThreads[i].loadCertificates(sslConfig);
-            ioThreads[i].start();
-        }
-
         ByteBuffer eventsBuffer = this.events;
         byte[] events = new byte[eventsBuffer.capacity()];
         byte[] newConnections = new byte[eventsBuffer.capacity()];
@@ -97,6 +89,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
             ioThreads = new IOThread[]{ioThread};
             ioThreads[0].setTTL(ttl);
             ioThreads[0].loadCertificates(sslConfig);
+            started.countDown();
 
             long prev = System.nanoTime();
             while (running) {
@@ -104,7 +97,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
                     eventsBuffer.position(0);
                     long now = System.nanoTime() * 1000;
                     long nowMinusSecond = now - 1_000_000_000_000L; // 1 sec
-                    int r = waitForEvents(500);
+                    int r = waitForEvents(100);
                     eventsBuffer.limit(r);
                     eventsBuffer.get(events, 0, r);
                     int i = 0;
@@ -122,12 +115,24 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
                         ioThread.handleTimeOuts(now);
                         prev = now;
                     }
+
+                    ioThread.handleClosingConnections();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
+            stopListening(scope);
             return;
         }
+
+        ioThreads = new IOThread[ioThreadsCount];
+        for (int i = 0; i < ioThreadsCount; i++) {
+            ioThreads[i] = createIOThread(i, ioThreadsCount);
+            ioThreads[i].setTTL(ttl);
+            ioThreads[i].loadCertificates(sslConfig);
+            ioThreads[i].start();
+        }
+        started.countDown();
 
         while (running) {
             try {
@@ -152,6 +157,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         for (int i = 0; i < ioThreads.length; i++) {
             ioThreads[i].close();
         }
+        stopListening(scope);
     }
 
     public void setTTL(long milliseconds) {
@@ -166,7 +172,6 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         synchronized (this) {
             if (running) {
                 running = false;
-                stopListening(scope);
                 try {
                     join();
                 } catch (InterruptedException ignored) {
@@ -193,11 +198,37 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         ioThreads[connection.fd % ioThreadsCount].putConnection(connection);
     }
 
+    protected void waitTillStarted() {
+        try {
+            started.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public T connect(String host, int port) throws IOException {
         return connect(host, port, this::createConnection);
     }
 
+    public T connect(String host, int port, boolean ssl) throws IOException {
+        return connect(host, port, this::createConnection, ssl);
+    }
+
+    public T connect(String host, int port, boolean ssl, boolean verifyCertValidity) throws IOException {
+        return connect(host, port, this::createConnection, ssl, verifyCertValidity);
+    }
+
     public T connect(String host, int port, ConnectionFactory<T> factory) throws IOException {
+        return connect(host, port, factory, false);
+    }
+
+    public T connect(String host, int port, ConnectionFactory<T> factory, boolean ssl) throws IOException {
+        return connect(host, port, factory, ssl, true);
+    }
+
+    public T connect(String host, int port, ConnectionFactory<T> factory, boolean ssl, boolean verifyCertValidity) throws IOException {
+        waitTillStarted();
+
         boolean resolve = !IP_PATTERN.matcher(host).matches();
         if (resolve) {
             InetAddress address = InetAddress.getByName(host);
@@ -206,13 +237,27 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
         T connection;
         if (Thread.currentThread() instanceof IOThread) {
             IOThread ioThread = (IOThread) Thread.currentThread();
-            int fd = ioThread.connect(scope, host, port, ioThread.divider, ioThread.number);
+//            int fd = ioThread.connect(scope, host, port, ioThread.divider, ioThread.number);
+            int fd = ioThread.createSocket(ioThread.divider, ioThread.number);
             connection = factory.create(fd, 0, port);
-            ioThread.putConnection(connection);
+//            ioThread.putConnection(connection);
         } else {
-            connection = factory.create(connect(scope, host, port, 1, 0), 0, port);
-            putConnection(connection);
+            int fd = createSocket(1, 0);
+//            int fd = connect(scope, host, port, 1, 0);
+            connection = factory.create(fd, 0, port);
         }
+
+        if (ssl) {
+            if (verifyCertValidity)
+                connection.ssl = EpollSSL.createSSL(EpollSSL.SSLClientContext.SSL_CLIENT_CONTEXT_POINTER, connection.fd);
+            else
+                connection.ssl = EpollSSL.createSSL(EpollSSL.SSLClientContextUntrusted.SSL_CLIENT_CONTEXT_POINTER, connection.fd);
+        }
+        connection.clientMode = true;
+
+        connect(connection.fd, host, port);
+
+        putConnection(connection);
         connection.setIpString(host);
         return connection;
     }
@@ -252,7 +297,9 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     protected T createConnection(int fd, int ip, int port) {
-        return (T) new Connection(fd, ip, port);
+        Connection connection = new Connection(fd, ip, port);
+//        connection.setLastEvent(System.nanoTime() * 1000);
+        return (T) connection;
     }
 
     protected IOThread<? extends T> createIOThread(int number, int divider) {
@@ -279,17 +326,21 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     native boolean attach(long scope, int fd);
 
+    native boolean detach(long scope, int fd);
+
     private native long init(int maxEvents, ByteBuffer events);
 
     private native void listen(long scope, String host, String port) throws IOException;
 
-    private native boolean stopListening(long scope);
+    native boolean stopListening(long scope);
 
     private native int waitForEvents(long scope, int timeout);
 
     private native int acceptConnections(long scope, int limit);
 
-    native int connect(long scope, String host, int port, int divider, int number);
+    native int createSocket(int divider, int number);
+
+    native int connect(int fd, String host, int port);
 
     private native boolean mod(long scope, int fd, int mode);
 
@@ -299,7 +350,9 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
 
     private native static long getAddress(ByteBuffer buffer);
 
-    private static final FieldReflection byteBufferAddressReflection = getByteBufferAddressReflection();
+    private static class ByteBufferAddressReflectionHolder {
+        static final FieldReflection byteBufferAddressReflection = getByteBufferAddressReflection();
+    }
 
     private static FieldReflection getByteBufferAddressReflection() {
         try {
@@ -310,7 +363,7 @@ public class EpollCore<T extends Connection> extends Thread implements ByteBuffe
     }
 
     static long address(ByteBuffer buffer) {
-        return SUPPORTED ? getAddress(buffer) : byteBufferAddressReflection.getLong(buffer);
+        return SUPPORTED ? getAddress(buffer) : ByteBufferAddressReflectionHolder.byteBufferAddressReflection.getLong(buffer);
     }
 
     public static void arraycopy(ByteBuffer src, int srcPos, ByteBuffer dest, int destPos, int length) {

@@ -24,15 +24,16 @@ public class Connection implements Cloneable, Closeable {
     protected volatile Deque<ReadableData> sending;
     protected volatile IOThread epoll;
     protected volatile long ssl;
-    protected volatile boolean sslAccepted;
+    protected volatile boolean sslPrepared;
+    protected volatile boolean clientMode = false;
     protected final AtomicReference<ByteBufferProvider> writer = new AtomicReference<>();
     protected EpollInputStream inputStream;
     protected EpollOutputStream outputStream;
-    protected ReadListener<Connection> readListener;
-    protected WriteListener<Connection> writeListener;
-    protected ConnectListener<Connection> connectListener;
-    protected DisconnectListener<Connection> disconnectListener;
-    protected ErrorListener<Connection> errorListener;
+    protected volatile ReadListener<Connection> readListener;
+    protected volatile WriteListener<Connection> writeListener;
+    protected volatile ConnectListener<Connection> connectListener;
+    protected volatile DisconnectListener<Connection> disconnectListener;
+    protected volatile ErrorListener<Connection> errorListener;
     private volatile int mode = 1;
     private volatile boolean alive = true;
     volatile boolean readyToRead = true;
@@ -209,7 +210,7 @@ public class Connection implements Cloneable, Closeable {
             try {
 //              int written = epoll.write(this, bb.address, bb.offset(), r);
                 int written = write(bb, bb.offset(), r);
-//              System.out.println("write: " + written + " (" + readable.complete() + "/" + readable.length() + ")" + " to " + this);
+//                System.out.println("write: " + written + " (" + (readable.complete() - (r - written)) + "/" + readable.length() + ")" + " to " + this);
                 if (written != r) {
                     readable.unread(r - written);
                     return false;
@@ -242,12 +243,11 @@ public class Connection implements Cloneable, Closeable {
     }
 
     public void close() {
-        if (sending != null)
-            for (ReadableData data : sending)
+        if (sending != null) {
+            for (ReadableData data : sending) {
                 IOTools.close(data);
-
-        if (ssl != 0)
-            EpollSSL.closeSSL(ssl);
+            }
+        }
 
         epoll.close(this);
     }
@@ -334,19 +334,27 @@ public class Connection implements Cloneable, Closeable {
         epoll = IOThread;
     }
 
-    boolean prepareSSL() {
+    boolean prepareSSL() throws IOException {
         if (ssl == 0)
             ssl = epoll.createSSL(fd);
 
-        if (!sslAccepted) {
+        if (!sslPrepared) {
             synchronized (this) {
-                if (!sslAccepted)
-                    sslAccepted = EpollSSL.acceptSSL(ssl);
+                if (!sslPrepared) {
+                    try {
+                        if (!clientMode)
+                            sslPrepared = EpollSSL.acceptSSL(ssl);
+                        else
+                            sslPrepared = EpollSSL.connect(ssl);
+                    } catch (IOException e) {
+                        throw new IOException("SSL initialization failed", e);
+                    }
+                }
             }
         } else
             return true;
 
-        return sslAccepted;
+        return sslPrepared;
     }
 
     public void onRead(ByteBufferProvider bufferProvider) throws IOException {

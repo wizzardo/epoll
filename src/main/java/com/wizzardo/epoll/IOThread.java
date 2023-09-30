@@ -5,7 +5,9 @@ import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.wizzardo.epoll.Utils.readInt;
 
@@ -19,6 +21,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     protected T[] connections = (T[]) new Connection[1000];
     protected Map<Integer, T> newConnections = new ConcurrentHashMap<Integer, T>();
     protected LinkedHashMap<Long, T> timeouts = new LinkedHashMap<Long, T>();
+    protected Queue<Integer> closingConnections = new ConcurrentLinkedQueue<>();
 
     public IOThread(int number, int divider) {
         this.number = number;
@@ -36,7 +39,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
             this.events.position(0);
             long now = System.nanoTime() * 1000;
             long nowMinusSecond = now - 1_000_000_000_000L;// 1 sec
-            int r = waitForEvents(500);
+            int r = waitForEvents(100);
 //                System.out.println("events length: "+r);
             this.events.limit(r);
             this.events.get(events, 0, r);
@@ -53,17 +56,27 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                 handleTimeOuts(now);
                 prev = now;
             }
+
+            handleClosingConnections();
         }
+        stopListening(scope);
     }
 
     protected long handleEvent(int fd, int event, long now, long eventTimeoutThreshold) {
         T connection = getConnection(fd);
         if (connection == null) {
+            if (event == 3) {
+                return now;
+            }
+            detach(scope, fd);
             close(fd);
             return now;
         }
 
         try {
+            if (connection.getLastEvent() == 0) {
+                onAttach(connection);
+            }
             if (event == 1) {
                 connection.readyToRead = true;
                 onRead(connection);
@@ -74,6 +87,9 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
                 connection.readyToRead = true;
                 onRead(connection);
             } else if (event == 3) {
+                if (connection.clientMode)
+                    onRead(connection);
+
                 connection.close();
                 return now;
             } else
@@ -118,6 +134,15 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         }
     }
 
+    protected void handleClosingConnections() {
+        Integer fd;
+        while ((fd = closingConnections.poll()) != null) {
+            T connection = deleteConnection(fd);
+            if (connection != null)
+                connection.close();
+        }
+    }
+
     protected T getConnection(int fd) {
         T t;
         int index = fd / divider;
@@ -132,7 +157,9 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     private T deleteConnection(int fd) {
         int index = fd / divider;
         T connection = connections[index];
-        connections[index] = null;
+        if (connection != null)
+            connections[index] = null;
+
         return connection;
     }
 
@@ -147,21 +174,39 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
         connections[index] = connection;
     }
 
-    protected void putConnection(T connection) throws IOException {
+    protected void putConnection(T connection) {
         newConnections.put(connection.fd, connection);
         connection.setIOThread(this);
-        if (attach(scope, connection.fd)) {
-            onAttach(connection);
-        } else {
+        if (!attach(scope, connection.fd)) {
             newConnections.remove(connection.fd);
             connection.close();
         }
     }
 
     void close(T connection) {
+        if (!connection.isAlive())
+            return;
+
+        if (connection.clientMode) {
+            Thread currentThread = Thread.currentThread();
+            if (currentThread != this && (!(currentThread instanceof EpollCore) || ((EpollCore<?>) currentThread).scope != connection.epoll.scope)) {
+                closingConnections.add(connection.fd);
+                return;
+            }
+        }
+
         connection.setIsAlive(false);
+
+        if (connection.ssl != 0) {
+            EpollSSL.closeSSL(connection.ssl);
+            connection.ssl = 0;
+        }
+
+        if (deleteConnection(connection.fd) != null) {
+            detach(scope, connection.fd);
+        }
+
         close(connection.fd);
-        deleteConnection(connection.fd);
         try {
             onDisconnect(connection);
         } catch (Exception e) {
@@ -211,7 +256,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     protected int write(Connection connection, long bbPointer, int off, int len) throws IOException {
-        if (isSecured()) {
+        if (isSecured() || connection.isSecured()) {
             if (!connection.prepareSSL())
                 return 0;
             return EpollSSL.writeSSL(connection.fd, bbPointer, off, len, connection.ssl);
@@ -220,7 +265,7 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     }
 
     protected int read(Connection connection, long bbPointer, int off, int len) throws IOException {
-        if (isSecured()) {
+        if (isSecured() || connection.isSecured()) {
             if (!connection.prepareSSL())
                 return 0;
             return EpollSSL.readSSL(connection.fd, bbPointer, off, len, connection.ssl);

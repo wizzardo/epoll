@@ -5,6 +5,7 @@ import com.wizzardo.epoll.ByteBufferWrapper;
 import com.wizzardo.epoll.EpollCore;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author: wizzardo
@@ -136,6 +137,12 @@ public class ReadableByteBuffer extends ReadableData {
 
     @Override
     public String toString() {
-        return super.toString();
+        ByteBuffer b = buffer.buffer();
+        int position = b.position();
+        b.position(start);
+        byte[] bytes = new byte[(int) length()];
+        b.get(bytes);
+        b.position(position);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 }

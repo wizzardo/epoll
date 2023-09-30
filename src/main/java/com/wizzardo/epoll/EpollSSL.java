@@ -17,9 +17,23 @@ public class EpollSSL {
             System.out.println("openssl is not supported");
         }
         SUPPORTED = supported;
+        if (supported)
+            initLib();
     }
 
+    public static class SSLClientContext {
+        public static final long SSL_CLIENT_CONTEXT_POINTER = initSSLClient(true);
+    }
+
+    public static class SSLClientContextUntrusted {
+        public static final long SSL_CLIENT_CONTEXT_POINTER = initSSLClient(false);
+    }
+
+    private native static void initLib();
+
     native static long initSSL();
+
+    native static long initSSLClient(boolean verifyCertValidity);
 
     native static long createSSL(long scope, int fd);
 
@@ -34,4 +48,6 @@ public class EpollSSL {
     native static int readSSL(int fd, long bbPointer, int off, int lenm, long ssl) throws IOException;
 
     native static int writeSSL(int fd, long bbPointer, int off, int len, long ssl) throws IOException;
+
+    native static boolean connect(long ssl) throws IOException;
 }

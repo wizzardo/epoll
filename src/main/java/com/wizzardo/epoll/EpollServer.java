@@ -57,7 +57,7 @@ public class EpollServer<T extends Connection> extends EpollCore<T> {
     }
 
     protected void checkIfStarted() {
-        if (started)
+        if (isStarted())
             throw new IllegalStateException("Server is already started");
     }
 }
