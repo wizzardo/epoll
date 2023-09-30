@@ -83,18 +83,25 @@ public class EpollInputStream extends InputStream {
         if (available() == 0)
             return -1;
 
+        read++;
         return buffer[offset++] & 0xff;
     }
 
     protected void fillBuffer() throws IOException {
         ByteBufferProvider bufferProvider = ByteBufferProvider.current();
+        fillBuffer(bufferProvider);
+        waitForData(bufferProvider);
+    }
+
+    private int fillBuffer(ByteBufferProvider bufferProvider) throws IOException {
         if (contentLength > 0)
             limit = connection.read(buffer, 0, Math.min(buffer.length, (int) (contentLength - read)), bufferProvider);
         else
             limit = connection.read(buffer, bufferProvider);
         offset = 0;
+
         bufferProvider.getBuffer().clear();
-        waitForData(bufferProvider);
+        return limit;
     }
 
     protected void waitForData(ByteBufferProvider bufferProvider) throws IOException {
@@ -102,10 +109,14 @@ public class EpollInputStream extends InputStream {
             if (Thread.currentThread() instanceof IOThread)
                 throw new IllegalStateException("IOThread cannot be used in " + this.getClass().getSimpleName());
 
-            while (waiting = (limit = connection.read(buffer, bufferProvider)) == 0) {
+            if (waiting = fillBuffer(bufferProvider) == 0) {
+                if (!connection.isAlive())
+                    throw new IOException();
+
                 synchronized (this) {
-                    while (waiting) {
+                    while (waiting = fillBuffer(bufferProvider) == 0) {
                         try {
+//                            System.out.println("waitForData.wait " + connection + ", remains: " + (contentLength - read));
                             this.wait();
                         } catch (InterruptedException ignored) {
                         }
@@ -116,10 +127,11 @@ public class EpollInputStream extends InputStream {
     }
 
     public void wakeUp() {
-        if (waiting)
-            synchronized (this) {
+        synchronized (this) {
+            if (waiting) {
                 waiting = false;
                 this.notifyAll();
             }
+        }
     }
 }
