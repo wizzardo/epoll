@@ -20,7 +20,7 @@ allprojects {
 }
 
 ext {
-    toolsVersion = '0.22'
+    toolsVersion = '0.24-SNAPSHOT'
     descriptionString = 'Event-based socket server, which uses epoll'
 
     cWorkDir = 'src/main/c/com/wizzardo/epoll'

@@ -6,7 +6,7 @@ ext {
 
 
 jar {
-    classifier = 'natives-x64'
+    archiveClassifier = 'natives-x64'
     from "${rootProject.projectDir}/build/libepoll-core_x64.so"
     from "${rootProject.projectDir}/build/libepoll-ssl_x64.so"
 }
