@@ -1,4 +1,4 @@
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 if (!project.hasProperty("ossrhUsername"))
@@ -7,82 +7,89 @@ if (!project.hasProperty("ossrhPassword"))
     ext.ossrhPassword = ""
 
 task javadocJar(type: Jar) {
-    classifier = 'javadoc'
+    archiveClassifier = 'javadoc'
     from javadoc
 }
 
 task sourcesJar(type: Jar) {
-    classifier = 'sources'
+    archiveClassifier = 'sources'
     from sourceSets.main.allSource
 }
 
 task natives_x32(type: Jar) {
-    classifier = 'natives-x32'
+    archiveClassifier = 'natives-x32'
     from 'build/libepoll-core_x32.so'
     from 'build/libepoll-ssl_x32.so'
 }
 task natives_x64(type: Jar) {
-    classifier = 'natives-x64'
+    archiveClassifier = 'natives-x64'
     from 'build/libepoll-core_x64.so'
     from 'build/libepoll-ssl_x64.so'
 }
 task natives_aarch64(type: Jar) {
-    classifier = 'natives-aarch64'
+    archiveClassifier = 'natives-aarch64'
     from 'build/libepoll-core_aarch64.so'
     from 'build/libepoll-ssl_aarch64.so'
 }
 
-artifacts {
-    archives javadocJar, sourcesJar, natives_x32, natives_x64, natives_aarch64
-}
 
-signing {
-    required { gradle.taskGraph.hasTask("uploadArchives") }
-    sign configurations.archives
-}
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+            artifact natives_x32
+            artifact natives_x64
+            artifact natives_aarch64
 
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+            groupId = project.group
+            artifactId = project.name
+            version = project.version
 
-            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
-            }
-
-            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
-            }
-
-            pom.project {
-                name archivesBaseName
-                packaging 'jar'
-                // optionally artifactId can be defined here
+            pom {
+                url = 'https://github.com/wizzardo/epoll'
                 description project.ext.descriptionString
-                url 'https://github.com/wizzardo/epoll'
 
                 scm {
-                    connection 'scm:git:git@github.com:wizzardo/epoll.git'
-                    developerConnection 'scm:git:git@github.com:wizzardo/epoll.git'
-                    url 'https://github.com/wizzardo/epoll'
+                    connection = 'scm:git:git@github.com:wizzardo/epoll.git'
+                    developerConnection = 'scm:git:git@github.com:wizzardo/epoll.git'
+                    url = 'https://github.com/wizzardo/epoll'
                 }
 
 
                 licenses {
                     license {
-                        name 'MIT License'
-                        url 'http://www.opensource.org/licenses/mit-license.php'
+                        name = 'MIT License'
+                        url = 'http://www.opensource.org/licenses/mit-license.php'
                     }
                 }
 
                 developers {
                     developer {
-                        id 'Wizzardo'
-                        name 'Mikhail Bobrutskov'
-                        email 'wizzardobox@gmail.com'
+                        id = 'Wizzardo'
+                        name = 'Mikhail Bobrutskov'
+                        email = 'wizzardobox@gmail.com'
                     }
                 }
             }
         }
     }
+
+    repositories {
+        maven {
+            def releasesRepoUrl = uri('https://oss.sonatype.org/service/local/staging/deploy/maven2/')
+            def snapshotsRepoUrl = uri('https://oss.sonatype.org/content/repositories/snapshots/')
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username ossrhUsername
+                password ossrhPassword
+            }
+
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
 }
