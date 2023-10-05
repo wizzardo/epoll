@@ -1,6 +1,5 @@
 package com.wizzardo.epoll;
 
-import com.wizzardo.epoll.readable.ReadableByteArray;
 import com.wizzardo.tools.http.HttpClient;
 import com.wizzardo.tools.http.Response;
 import com.wizzardo.tools.misc.Stopwatch;
@@ -20,9 +19,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
 import java.util.Random;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -490,7 +487,6 @@ public class EpollClientTest {
             for (int j = 0; j < 5; j++) {
                 System.out.println();
                 EpollCore<Connection> epoll = new EpollCore<>();
-                CpuAndAllocationStats stats = new CpuAndAllocationStats(epoll);
 
                 epoll.setIoThreadsCount(0);
                 epoll.start();
@@ -503,7 +499,6 @@ public class EpollClientTest {
 
                 Thread.sleep(100); // wait until epoll thread starts to get allocation
                 Stopwatch stopwatch = new Stopwatch("request");
-                long allocationBefore = stats.getTotalAllocation();
                 Connection connection = Unchecked.call(() -> epoll.connect("localhost", port, true, false));
 //                Connection connection = Unchecked.call(() -> epoll.connect("localhost", port));
 
@@ -557,10 +552,8 @@ public class EpollClientTest {
                 });
                 connection.write(requestString, () -> new ByteBufferWrapper(1024));
 
-                long allocationAfter;
                 try {
                     Assert.assertTrue(countDownLatch.await(20, TimeUnit.SECONDS));
-                    allocationAfter = stats.getTotalAllocation();
                 } finally {
                     epoll.close();
                 }
@@ -569,7 +562,6 @@ public class EpollClientTest {
                 float requestTime = stopwatch.getValue() - (hashingTime.get() / 1000f / 1000f);
                 System.out.println("actual request time: " + requestTime + "ms");
                 System.out.println("download speed: " + (payloadSize / 1024f / 1024f / (requestTime / 1000f)) + "mb/s");
-                System.out.println("epoll client allocation: " + (allocationAfter - allocationBefore) / 1024f / 1024f + "mb");
 //                System.out.println("allocationBefore: " + allocationBefore);
 //                System.out.println("allocationAfter : " + allocationAfter);
             }
@@ -578,8 +570,6 @@ public class EpollClientTest {
             for (int i = 0; i < 5; i++) {
                 System.out.println();
                 Stopwatch stopwatch = new Stopwatch("request");
-                CpuAndAllocationStats stats = new CpuAndAllocationStats();
-                long allocationBefore = stats.getTotalAllocation();
                 TrustManager[] trustAllCerts = new TrustManager[]{new X509TrustManager() {
                     public X509Certificate[] getAcceptedIssuers() {
                         return null;
@@ -615,8 +605,6 @@ public class EpollClientTest {
                 float requestTime = stopwatch.getValue() - (hashingTime / 1000f / 1000f);
                 System.out.println("actual request time: " + requestTime + "ms");
                 System.out.println("download speed: " + (payloadSize / 1024f / 1024f / (requestTime / 1000f)) + "mb/s");
-                long allocationAfter = stats.getTotalAllocation();
-                System.out.println("java client allocation: " + (allocationAfter - allocationBefore) / 1024f / 1024f + "mb");
             }
 
         } finally {

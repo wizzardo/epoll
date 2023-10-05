@@ -591,7 +591,7 @@ public class EpollServerTest {
             while (true) {
 //                Assert.assertEquals("ok", HttpClient.createRequest("http://localhost:8080")
 //                System.out.println("send request " + i);
-                Assert.assertEquals("ok", HttpClient.createRequest("http://localhost:9090")
+                Assert.assertEquals("ok", HttpClient.createRequest("http://localhost:" + port)
                         .header("Connection", "Close")
                         .get().asString());
 //                System.out.println("request finished " + i);

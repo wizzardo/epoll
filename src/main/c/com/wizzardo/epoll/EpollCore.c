@@ -252,8 +252,8 @@ JNIEXPORT jboolean JNICALL Java_com_wizzardo_epoll_EpollCore_attach(JNIEnv *env,
     e.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP | EPOLLRDHUP | EPOLLOUT;
     s = epoll_ctl((*scope).efd, EPOLL_CTL_ADD, infd, &e);
     if (s == -1) {
-        throwException(env, strerror(errno));
-        perror("epoll_ctl on attach");
+//        throwException(env, strerror(errno));
+//        perror("epoll_ctl on attach");
         return JNI_FALSE;
     }
     return JNI_TRUE;

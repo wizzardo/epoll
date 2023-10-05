@@ -65,9 +65,6 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
     protected long handleEvent(int fd, int event, long now, long eventTimeoutThreshold) {
         T connection = getConnection(fd);
         if (connection == null) {
-            if (event == 3) {
-                return now;
-            }
             detach(scope, fd);
             close(fd);
             return now;
@@ -202,10 +199,8 @@ public class IOThread<T extends Connection> extends EpollCore<T> {
             connection.ssl = 0;
         }
 
-        if (deleteConnection(connection.fd) != null) {
-            detach(scope, connection.fd);
-        }
-
+        deleteConnection(connection.fd);
+        detach(scope, connection.fd);
         close(connection.fd);
         try {
             onDisconnect(connection);
