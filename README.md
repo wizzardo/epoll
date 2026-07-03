@@ -60,7 +60,7 @@ Download
 Building the project for aarach64 ( mac m1 machines)
 If you happen to run the epoll (wizzardo) on a mac m1 machine on docker based on linux images
 you will need to build the project on a docker itself. As you can't build the epoll on mac machines
-because of the fact that sys/epoll.h is not availble on Mac. 
+because of the fact that sys/epoll.h is not available on Mac. 
 
 I have created a dockerfile which can let you do that. 
 
